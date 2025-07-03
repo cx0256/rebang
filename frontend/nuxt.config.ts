@@ -32,11 +32,11 @@ export default defineNuxtConfig({
   
   // 模块配置
   modules: [
+    '@nuxt/ui',
     '@nuxtjs/tailwindcss',
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
     '@vueuse/nuxt',
-    '@nuxt/ui',
     '@nuxt/icon'
   ],
   
@@ -47,7 +47,7 @@ export default defineNuxtConfig({
     
     // 公共配置（客户端也可用）
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8001',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
       gtag: process.env.NUXT_PUBLIC_GTAG || ''
     }
@@ -64,14 +64,7 @@ export default defineNuxtConfig({
     transpile: ['@headlessui/vue']
   },
   
-  // Vite 配置
-  vite: {
-    resolve: {
-      alias: {
-        '#tailwind-config/theme/colors': './.nuxt/tailwind-config/theme/colors.mjs'
-      }
-    }
-  },
+
   
   // 服务端渲染配置
   ssr: true,
@@ -94,6 +87,12 @@ export default defineNuxtConfig({
     compressPublicAssets: true,
     prerender: {
       routes: ['/']
+    },
+    devProxy: {
+      '/api': {
+        target: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
+        changeOrigin: true,
+      }
     }
   },
   
@@ -105,6 +104,7 @@ export default defineNuxtConfig({
   
   // UI 配置
   ui: {
+    // 移除 colors 配置，使用默认颜色配置
     global: true
   },
   

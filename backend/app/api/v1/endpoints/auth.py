@@ -1,57 +1,36 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any
+from sqlalchemy.orm import Session
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.database import get_db
+from app.schemas.user import User, UserCreate, Token
+from app.services import user_service
+from app.core.security import get_current_active_user
+from app.models.user import User as UserModel
 
 router = APIRouter()
 
+@router.post("/register", response_model=User)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = user_service.get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    return user_service.create_user(db=db, user=user)
 
-@router.post("/login")
-async def login(
-    credentials: Dict[str, Any],
-    db: AsyncSession = Depends(get_db)
-):
-    """用户登录"""
-    # 简单的登录实现
-    username = credentials.get("username")
-    password = credentials.get("password")
-    
-    if not username or not password:
+@router.post("/login", response_model=Token)
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = user_service.authenticate_user(db, email=form_data.username, password=form_data.password)
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username and password are required"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    # 这里应该验证用户凭据
-    # 暂时返回成功响应
-    return {
-        "success": True,
-        "data": {
-            "access_token": "fake-token",
-            "token_type": "bearer",
-            "user": {
-                "id": 1,
-                "username": username
-            }
-        }
-    }
+    access_token = user_service.create_access_token(
+        data={"sub": user.email}
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
-
-@router.post("/logout")
-async def logout():
-    """用户登出"""
-    return {"success": True, "message": "Logged out successfully"}
-
-
-@router.get("/me")
-async def get_current_user():
-    """获取当前用户信息"""
-    return {
-        "success": True,
-        "data": {
-            "id": 1,
-            "username": "admin",
-            "email": "admin@example.com"
-        }
-    }
+@router.get("/me", response_model=User)
+def read_users_me(current_user: UserModel = Depends(get_current_active_user)):
+    return current_user

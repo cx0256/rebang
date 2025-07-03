@@ -236,6 +236,6 @@ if (import.meta.hot) {
   })
 }
 
-import cfg0 from "D:/work/workspace/momoyu/frontend/app.config.ts"
+import cfg0 from "D:/work/workspace/个人项目/rebang/frontend/app.config.ts"
 
 export default /*@__PURE__*/ defuFn(cfg0, inlineConfig)

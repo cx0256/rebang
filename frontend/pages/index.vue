@@ -446,7 +446,7 @@ const handleLogin = async () => {
 
   isLoading.value = true
   try {
-    const result = await login(loginForm.value)
+    const result = await login(loginForm.value.username, loginForm.value.password)
     if (result.success) {
       addNotification('success', '登录成功')
       showLoginModal.value = false

@@ -77,10 +77,10 @@ def start_postgresql():
     except Exception:
         pass
     
-    # 使用 docker-compose 启动
-    print("使用 docker-compose 启动 PostgreSQL...")
+    # 使用 docker compose 启动
+    print("使用 docker compose 启动 PostgreSQL...")
     project_root = Path(__file__).parent
-    run_command("docker-compose up -d postgres", cwd=project_root)
+    run_command("docker compose up -d postgres", cwd=project_root)
     
     # 等待数据库启动
     print("等待数据库启动...")

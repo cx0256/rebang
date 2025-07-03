@@ -78,7 +78,7 @@
             {{ confirmDialog.cancelText || '取消' }}
           </UButton>
           <UButton
-            :color="confirmDialog.type === 'danger' ? 'red' : 'primary'"
+            :color="(confirmDialog.type === 'danger' ? 'red' : 'primary') as any"
             @click="handleConfirmOk"
           >
             {{ confirmDialog.confirmText || '确认' }}

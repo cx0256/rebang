@@ -51,7 +51,7 @@
                 v-if="option.is_hot" 
                 label="热门" 
                 size="xs" 
-                color="red" 
+                :color="'red' as any" 
                 variant="soft"
               />
             </div>
@@ -85,7 +85,7 @@
               v-if="item.is_hot" 
               label="热门" 
               size="xs" 
-              color="red" 
+              :color="'red' as any" 
               variant="soft"
             />
           </div>
@@ -126,7 +126,7 @@
                 v-if="category.is_hot" 
                 label="热" 
                 size="xs" 
-                color="red" 
+                :color="'red' as any" 
                 variant="solid"
               />
             </div>
@@ -178,7 +178,7 @@
                 v-if="category.is_hot" 
                 label="热门" 
                 size="xs" 
-                color="red" 
+                :color="'red' as any" 
                 variant="soft"
               />
             </div>
@@ -229,7 +229,7 @@
                   v-if="category.is_hot" 
                   label="热" 
                   size="xs" 
-                  color="red" 
+                  :color="'red' as any" 
                   variant="soft"
                 />
               </div>

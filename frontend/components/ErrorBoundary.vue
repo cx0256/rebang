@@ -65,7 +65,7 @@
                 v-if="showReportButton"
                 label="报告问题"
                 icon="heroicons:bug-ant"
-                color="red"
+                :color="'red' as any"
                 variant="outline"
                 size="lg"
                 @click="handleReport"

@@ -53,7 +53,7 @@
         v-if="category.is_hot" 
         label="热" 
         size="xs" 
-        color="red" 
+        :color="'red' as any" 
         variant="soft"
         class="category-tree-node__hot-badge"
       />
@@ -63,7 +63,7 @@
         v-if="category.is_new" 
         label="新" 
         size="xs" 
-        color="blue" 
+        :color="'blue' as any" 
         variant="soft"
         class="category-tree-node__new-badge"
       />

@@ -1,80 +1,62 @@
-import type { User } from '~/types'
-
-interface LoginCredentials {
-  username: string
-  password: string
-}
-
-interface RegisterData {
-  username: string
-  email: string
-  password: string
-  confirmPassword: string
-}
+import type { User, UserCreate } from '~/types'
 
 export const useAuth = () => {
   const { $api } = useNuxtApp()
   
-  // 状态管理
   const user = useState<User | null>('auth.user', () => null)
-  const token = useCookie('auth-token', {
+  const token = useCookie<string | null>('auth-token', {
     default: () => null,
     maxAge: 60 * 60 * 24 * 7, // 7天
-    secure: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict'
   })
   
-  // 计算属性
   const isAuthenticated = computed(() => !!user.value && !!token.value)
   const isAdmin = computed(() => user.value?.is_admin || false)
   
-  // 登录
-  const login = async (credentials: LoginCredentials) => {
+  async function login(email: string, password: string) {
     try {
-      const response = await $api.post('/api/v1/auth/login', credentials)
-      
+      const formData = new FormData()
+      formData.append('username', email) // The form field is 'username' for OAuth2
+      formData.append('password', password)
+
+      const response = await $api.post<{ access_token: string; token_type: string }>('/api/v1/auth/login', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+
       if (response.success && response.data) {
-        // 保存token和用户信息
         token.value = response.data.access_token
-        user.value = response.data.user
-        
-        // 更新最后登录时间
-        await updateLastLogin()
-        
+        await fetchUser()
         return { success: true }
       } else {
-        throw new Error(response.message || '登录失败')
+        return { success: false, error: response.message || '登录失败' }
       }
     } catch (error: any) {
-      console.error('Login error:', error)
-      return {
-        success: false,
-        error: error.message || '登录失败，请检查用户名和密码'
-      }
+      return { success: false, error: error.message || '登录时发生错误' }
     }
   }
   
-  // 注册
-  const register = async (data: RegisterData) => {
-    try {
-      // 验证密码确认
-      if (data.password !== data.confirmPassword) {
-        throw new Error('密码确认不匹配')
-      }
-      
-      const { confirmPassword, ...registerData } = data
-      const response = await $api.post('/api/v1/auth/register', registerData)
-      
-      if (response.success) {
-        return { success: true, message: '注册成功，请登录' }
-      } else {
-        throw new Error(response.message || '注册失败')
-      }
-    } catch (error: any) {
-      console.error('Register error:', error)
-      return {
-        success: false,
-        error: error.message || '注册失败，请稍后重试'
+  async function register(userData: UserCreate) {
+    return await $api.post('/api/v1/auth/register', userData)
+  }
+
+  async function fetchUser() {
+    if (token.value) {
+      try {
+        const response = await $api.get<User>('/api/v1/auth/me')
+        if (response.success) {
+          if (response.data) {
+            user.value = response.data
+          }
+        } else {
+          token.value = null
+          user.value = null
+        }
+      } catch (error) {
+        token.value = null
+        user.value = null
       }
     }
   }

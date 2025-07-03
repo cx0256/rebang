@@ -241,7 +241,7 @@ function generateRequestId(): string {
 
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
-  const apiClient = new ApiClient(config.public.apiBase)
+  const apiClient = new ApiClient(process.client ? '/api' : config.public.apiBase)
 
   return {
     provide: {

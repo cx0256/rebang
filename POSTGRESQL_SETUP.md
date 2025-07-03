@@ -39,10 +39,10 @@ python setup_postgresql.py
 
 ```bash
 # 启动 PostgreSQL 和 Redis
-docker-compose up -d postgres redis
+docker compose up -d postgres redis
 
 # 查看容器状态
-docker-compose ps
+docker compose ps
 ```
 
 #### 3.2 安装 Python 依赖

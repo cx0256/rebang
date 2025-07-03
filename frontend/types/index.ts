@@ -81,6 +81,13 @@ export interface User extends BaseEntity {
   last_login?: string
 }
 
+// 创建用户类型
+export interface UserCreate {
+  username: string
+  email: string
+  password: string
+}
+
 // API 响应类型
 export interface ApiResponse<T = any> {
   success: boolean
