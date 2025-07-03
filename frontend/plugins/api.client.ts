@@ -3,10 +3,11 @@ import type { ApiResponse } from '~/types'
 
 class ApiClient {
   private instance: AxiosInstance
-  private baseURL: string
 
-  constructor(baseURL: string) {
-    this.baseURL = baseURL
+  constructor() {
+    const runtimeConfig = useRuntimeConfig()
+    const baseURL = runtimeConfig.public.apiBase
+
     this.instance = axios.create({
       baseURL,
       timeout: 30000,
@@ -34,7 +35,8 @@ class ApiClient {
 
         // 开发环境下打印请求信息
         if (process.dev) {
-          console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+          const fullUrl = `${config.baseURL}${config.url}`
+          console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${fullUrl}`, {
             params: config.params,
             data: config.data
           })
@@ -53,7 +55,8 @@ class ApiClient {
       (response: AxiosResponse) => {
         // 开发环境下打印响应信息
         if (process.dev) {
-          console.log(`✅ API Response: ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+          const fullUrl = `${response.config.baseURL}${response.config.url}`
+          console.log(`✅ API Response: ${response.config.method?.toUpperCase()} ${fullUrl}`, {
             status: response.status,
             data: response.data
           })
@@ -218,11 +221,6 @@ class ApiClient {
     }
   }
 
-  // 获取基础URL
-  getBaseURL(): string {
-    return this.baseURL
-  }
-
   // 设置默认头部
   setDefaultHeader(key: string, value: string): void {
     this.instance.defaults.headers.common[key] = value
@@ -235,19 +233,18 @@ class ApiClient {
 }
 
 // 生成请求ID
-function generateRequestId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+function generateRequestId() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
-export default defineNuxtPlugin(() => {
-  const config = useRuntimeConfig()
-  const apiClient = new ApiClient(process.client ? '/api' : config.public.apiBase)
+export default defineNuxtPlugin((nuxtApp) => {
+  const apiClient = new ApiClient()
 
-  return {
-    provide: {
-      api: apiClient
-    }
-  }
+  // 将 apiClient 实例注入到 Nuxt app 上下文中
+  nuxtApp.provide('api', apiClient)
 })
 
 // 类型声明

@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -12,27 +13,29 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
 
-def get_user_by_email(db: Session, email: str) -> User:
-    return db.query(User).filter(User.email == email).first()
+async def get_user_by_email(db: AsyncSession, email: str) -> User:
+    result = await db.execute(select(User).filter(User.email == email))
+    return result.scalar_one_or_none()
 
-def get_user_by_username(db: Session, username: str) -> User:
-    return db.query(User).filter(User.username == username).first()
+async def get_user_by_username(db: AsyncSession, username: str) -> User:
+    result = await db.execute(select(User).filter(User.username == username))
+    return result.scalar_one_or_none()
 
-def create_user(db: Session, user: UserCreate) -> User:
-    if get_user_by_email(db, user.email):
+async def create_user(db: AsyncSession, user: UserCreate) -> User:
+    if await get_user_by_email(db, user.email):
         raise HTTPException(status_code=400, detail="Email already registered")
-    if get_user_by_username(db, user.username):
+    if await get_user_by_username(db, user.username):
         raise HTTPException(status_code=400, detail="Username already registered")
 
     hashed_password = pwd_context.hash(user.password)
     db_user = User(email=user.email, username=user.username, password_hash=hashed_password)
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    await db.commit()
+    await db.refresh(db_user)
     return db_user
 
-def authenticate_user(db: Session, email: str, password: str) -> User:
-    user = get_user_by_email(db, email)
+async def authenticate_user(db: AsyncSession, email: str, password: str) -> User:
+    user = await get_user_by_email(db, email)
     if not user or not pwd_context.verify(password, user.password_hash):
         return None
     return user

@@ -60,7 +60,7 @@ class HotListService:
                         continue
                     
                     # 获取最新的热榜数据（最近24小时内）
-                recent_time = datetime.utcnow() - timedelta(hours=24)
+                    recent_time = datetime.utcnow() - timedelta(hours=24)
                     recent_items = [
                         item for item in category.hot_items
                         if item.crawled_at and item.crawled_at >= recent_time
@@ -140,7 +140,7 @@ class HotListService:
                     continue
                 
                 # 获取最新的热榜数据
-        recent_time = datetime.utcnow() - timedelta(hours=24)
+                recent_time = datetime.utcnow() - timedelta(hours=24)
                 recent_items = [
                     item for item in category.hot_items
                     if item.crawled_at and item.crawled_at >= recent_time

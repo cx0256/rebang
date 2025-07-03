@@ -20,18 +20,18 @@ export const useAuth = () => {
       formData.append('username', email) // The form field is 'username' for OAuth2
       formData.append('password', password)
 
-      const response = await $api.post<{ access_token: string; token_type: string }>('/api/v1/auth/login', formData, {
+      const response = await $api.post<{ access_token: string; token_type: string }>('/v1/auth/login', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
-      })
+      }) as unknown as { access_token: string; token_type: string; detail?: string }
 
-      if (response.success && response.data) {
-        token.value = response.data.access_token
+      if (response.access_token) {
+        token.value = response.access_token
         await fetchUser()
         return { success: true }
       } else {
-        return { success: false, error: response.message || '登录失败' }
+        return { success: false, error: response.detail || '登录失败' }
       }
     } catch (error: any) {
       return { success: false, error: error.message || '登录时发生错误' }
@@ -39,17 +39,15 @@ export const useAuth = () => {
   }
   
   async function register(userData: UserCreate) {
-    return await $api.post('/api/v1/auth/register', userData)
+    return await $api.post('/v1/auth/register', userData)
   }
 
   async function fetchUser() {
     if (token.value) {
       try {
-        const response = await $api.get<User>('/api/v1/auth/me')
-        if (response.success) {
-          if (response.data) {
-            user.value = response.data
-          }
+        const response = await $api.get<User>('/v1/auth/me')
+        if (response) {
+          user.value = response as unknown as User
         } else {
           token.value = null
           user.value = null
@@ -66,7 +64,7 @@ export const useAuth = () => {
     try {
       // 调用后端登出接口
       if (token.value) {
-        await $api.post('/api/v1/auth/logout')
+        await $api.post('/v1/auth/logout')
       }
     } catch (error) {
       console.error('Logout error:', error)
@@ -89,7 +87,7 @@ export const useAuth = () => {
     try {
       if (!token.value) return false
       
-      const response = await $api.get('/api/v1/auth/me')
+      const response = await $api.get('/v1/auth/me')
       
       if (response.success && response.data) {
         user.value = response.data
@@ -109,7 +107,7 @@ export const useAuth = () => {
   // 更新最后登录时间
   const updateLastLogin = async () => {
     try {
-      await $api.patch('/api/v1/auth/last-login')
+      await $api.patch('/v1/auth/last-login')
     } catch (error) {
       console.error('Update last login error:', error)
     }
@@ -118,7 +116,7 @@ export const useAuth = () => {
   // 修改密码
   const changePassword = async (oldPassword: string, newPassword: string) => {
     try {
-      const response = await $api.patch('/api/v1/auth/change-password', {
+      const response = await $api.patch('/v1/auth/change-password', {
         old_password: oldPassword,
         new_password: newPassword
       })
@@ -140,7 +138,7 @@ export const useAuth = () => {
   // 更新用户资料
   const updateProfile = async (profileData: Partial<User>) => {
     try {
-      const response = await $api.patch('/api/v1/auth/profile', profileData)
+      const response = await $api.patch('/v1/auth/profile', profileData)
       
       if (response.success && response.data) {
         user.value = response.data
@@ -160,7 +158,7 @@ export const useAuth = () => {
   // 忘记密码
   const forgotPassword = async (email: string) => {
     try {
-      const response = await $api.post('/api/v1/auth/forgot-password', { email })
+      const response = await $api.post('/v1/auth/forgot-password', { email })
       
       if (response.success) {
         return { success: true, message: '重置密码邮件已发送' }
@@ -179,7 +177,7 @@ export const useAuth = () => {
   // 重置密码
   const resetPassword = async (token: string, newPassword: string) => {
     try {
-      const response = await $api.post('/api/v1/auth/reset-password', {
+      const response = await $api.post('/v1/auth/reset-password', {
         token,
         new_password: newPassword
       })
@@ -203,7 +201,7 @@ export const useAuth = () => {
     try {
       if (!token.value) return false
       
-      const response = await $api.get('/api/v1/auth/validate')
+      const response = await $api.get('/v1/auth/validate')
       return response.success
     } catch (error) {
       console.error('Validate token error:', error)

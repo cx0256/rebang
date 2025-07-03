@@ -23,7 +23,8 @@ export const useNotification = () => {
       title,
       message,
       duration: duration ?? (type === 'error' ? 0 : 5000), // 错误通知不自动消失
-      actions
+      actions,
+      createdAt: Date.now()
     }
     
     notifications.value.push(notification)

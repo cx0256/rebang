@@ -19,6 +19,40 @@
           <!-- 主题切换 -->
           <ThemeToggle />
           
+          <!-- 用户认证状态 -->
+          <div v-if="isAuthenticated" class="flex items-center space-x-2">
+            <!-- 用户信息 -->
+            <div class="flex items-center space-x-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <Icon name="heroicons:user-circle" class="w-4 h-4 text-gray-600 dark:text-gray-300" />
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ user?.username || user?.email }}</span>
+            </div>
+            
+            <!-- 退出登录按钮 -->
+            <button
+              @click="handleLogout"
+              class="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              title="退出登录"
+            >
+              <Icon name="heroicons:arrow-right-on-rectangle" class="w-4 h-4" />
+            </button>
+          </div>
+          
+          <!-- 未登录状态 -->
+          <div v-else class="flex items-center space-x-2">
+            <NuxtLink
+              to="/login"
+              class="px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            >
+              登录
+            </NuxtLink>
+            <NuxtLink
+              to="/register"
+              class="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              注册
+            </NuxtLink>
+          </div>
+          
           <!-- 设置按钮 -->
           <button
             class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
@@ -71,12 +105,28 @@
 </template>
 
 <script setup lang="ts">
+import { useNotification } from '~/composables/useNotification'
+
+// 认证相关
+const { user, isAuthenticated, logout } = useAuth()
+const notification = useNotification()
+
 // 响应式数据
 const showSettings = ref(false)
 
 // 方法
 const toggleSettings = () => {
   showSettings.value = !showSettings.value
+}
+
+// 处理退出登录
+const handleLogout = async () => {
+  try {
+    await logout()
+    notification.success('退出登录成功')
+  } catch (error) {
+    notification.error('退出登录失败', '请稍后重试')
+  }
 }
 
 // 点击外部关闭设置面板

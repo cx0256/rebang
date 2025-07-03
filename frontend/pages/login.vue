@@ -27,7 +27,7 @@ import { z } from 'zod'
 
 const { login } = useAuth()
 const router = useRouter()
-const notification = useNotification()
+const { addNotification } = useNotification()
 
 const state = ref({
   email: '',
@@ -44,11 +44,15 @@ const schema = z.object({
 async function submit() {
   loading.value = true
   try {
-    await login(state.value.email, state.value.password)
-    notification.success({ title: '登录成功', message: '欢迎回来！' })
-    router.push('/')
+    const result = await login(state.value.email, state.value.password)
+    if (result.success) {
+      addNotification('success', '登录成功')
+      router.push('/')
+    } else {
+      addNotification('error', result.error || '登录失败')
+    }
   } catch (error) {
-    notification.error({ title: '登录失败', message: error.data?.detail || '发生了未知错误' })
+    addNotification('error', '登录失败')
   } finally {
     loading.value = false
   }

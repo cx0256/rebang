@@ -35,7 +35,7 @@ import { z } from 'zod'
 
 const { register } = useAuth()
 const router = useRouter()
-const notification = useNotification()
+const { addNotification } = useNotification()
 
 const state = ref({
   username: '',
@@ -59,11 +59,15 @@ const schema = z.object({
 async function submit() {
   loading.value = true
   try {
-    await register(state.value)
-    notification.success({ title: '注册成功', message: '欢迎加入！请登录。' })
-    router.push('/login')
+    const result = await register(state.value)
+    if (result.success) {
+      addNotification('success', '注册成功，请登录')
+      router.push('/login')
+    } else {
+      addNotification('error', result.error || '注册失败')
+    }
   } catch (error) {
-    notification.error({ title: '注册失败', message: error.data?.detail || '发生了未知错误' })
+    addNotification('error', '注册失败')
   } finally {
     loading.value = false
   }

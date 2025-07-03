@@ -40,6 +40,17 @@ export default defineNuxtConfig({
     '@nuxt/icon'
   ],
   
+  // 路由规则
+  routeRules: {
+    '/api/**': {
+      proxy: {
+        to: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000/api/**',
+        // 如果后端API路径中不包含 /api，则需要重写路径
+        // pathRewrite: { '^/api': '' },
+      },
+    },
+  },
+
   // 运行时配置
   runtimeConfig: {
     // 私有配置（仅服务端可用）
@@ -47,7 +58,7 @@ export default defineNuxtConfig({
     
     // 公共配置（客户端也可用）
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
       gtag: process.env.NUXT_PUBLIC_GTAG || ''
     }
@@ -88,17 +99,12 @@ export default defineNuxtConfig({
     prerender: {
       routes: ['/']
     },
-    devProxy: {
-      '/api': {
-        target: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
-        changeOrigin: true,
-      }
-    }
+
   },
   
   // 开发服务器配置
   devServer: {
-    port: 3000,
+    port: 3001,
     host: 'localhost'
   },
   

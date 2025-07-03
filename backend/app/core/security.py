@@ -13,7 +13,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 ALGORITHM = "HS256"
 
-def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)) -> User:
+async def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -27,7 +27,7 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user = user_service.get_user_by_email(db, email=token_data.email)
+    user = await user_service.get_user_by_email(db, email=token_data.email)
     if user is None:
         raise credentials_exception
     return user

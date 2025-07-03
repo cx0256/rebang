@@ -1,51 +1,52 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 
-# 数据库相关
+# Database related
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 asyncpg==0.29.0
 aiosqlite==0.19.0
 alembic==1.12.1
 
-# Redis 缓存
+# Redis cache
 redis==5.0.1
 
-# HTTP 客户端
+# HTTP client
 httpx==0.25.2
 requests==2.31.0
 
-# 数据处理
+# Data processing
 pandas==2.0.3
 numpy==1.24.4
 
-# 网页解析
+# Web parsing
 beautifulsoup4==4.12.2
 lxml==4.9.3
 
-# 异步任务和调度
+# Async tasks and scheduling
 celery==5.3.4
 apscheduler==3.10.4
 aiohttp==3.9.1
 
-# 认证和安全
+# Authentication and security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
+email-validator==2.1.0
 
-# 配置管理
+# Configuration management
 python-dotenv==1.0.0
 pydantic-settings==2.0.3
 
-# 日志
+# Logging
 loguru==0.7.2
 
-# 时间处理
+# Time handling
 python-dateutil==2.8.2
 
 # CORS
 fastapi-cors==0.0.6
 
-# 开发工具
+# Development tools
 pytest==7.4.3
 pytest-asyncio==0.21.1
