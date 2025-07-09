@@ -167,28 +167,20 @@ const fetchHotLists = async () => {
     
     const response = await $fetch('/api/v1/hot')
     
-    if (response.success) {
+    if (response.success && response.data && response.data.hot_lists) {
       // 按平台分组数据
       const groupedData = {}
       
-      if (response.data && Array.isArray(response.data)) {
-        response.data.forEach(item => {
-          const platform = item.platform_name || '未知平台'
-          if (!groupedData[platform]) {
-            groupedData[platform] = []
-          }
-          groupedData[platform].push(item)
-        })
-        
-        // 按排名排序
-        Object.keys(groupedData).forEach(platform => {
-          groupedData[platform].sort((a, b) => (a.rank || 0) - (b.rank || 0))
-        })
-      }
+      response.data.hot_lists.forEach(platformData => {
+        const platformName = platformData.display_name || platformData.name || '未知平台'
+        groupedData[platformName] = platformData.items || []
+      })
       
       hotLists.value = groupedData
       platforms.value = Object.keys(groupedData)
-      lastUpdateTime.value = new Date().toLocaleString()
+      lastUpdateTime.value = response.data.last_updated ? 
+        new Date(response.data.last_updated).toLocaleString() : 
+        new Date().toLocaleString()
     }
   } catch (error) {
     console.error('获取热榜数据失败:', error)

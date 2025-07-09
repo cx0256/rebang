@@ -53,15 +53,47 @@ class BaseCrawler(ABC):
         if self.session:
             await self.session.close()
     
-    async def fetch(self, url: str, **kwargs) -> str:
-        """获取网页内容"""
-        try:
-            async with self.session.get(url, **kwargs) as response:
-                response.raise_for_status()
-                return await response.text()
-        except Exception as e:
-            logger.error(f"Failed to fetch {url}: {e}")
-            raise
+    async def fetch(self, url: str, max_retries: int = 3, **kwargs) -> str:
+        """获取网页内容，支持重试"""
+        retries = 0
+        last_error = None
+        
+        while retries < max_retries:
+            try:
+                async with self.session.get(url, **kwargs) as response:
+                    if response.status == 403:
+                        logger.warning(f"访问被禁止 (403): {url}")
+                        # 如果是403错误，可能需要更新请求头或Cookie
+                        raise aiohttp.ClientResponseError(
+                            request_info=response.request_info,
+                            history=response.history,
+                            status=response.status,
+                            message="Forbidden",
+                            headers=response.headers
+                        )
+                    
+                    response.raise_for_status()
+                    return await response.text()
+            except aiohttp.ClientResponseError as e:
+                last_error = e
+                logger.warning(f"请求失败 (尝试 {retries+1}/{max_retries}): {url}, 状态码: {e.status}")
+                # 对于某些错误不重试
+                if e.status in [400, 401, 403, 404]:
+                    break
+            except (aiohttp.ClientConnectorError, aiohttp.ServerDisconnectedError, asyncio.TimeoutError) as e:
+                last_error = e
+                logger.warning(f"连接错误 (尝试 {retries+1}/{max_retries}): {url}, 错误: {e}")
+            except Exception as e:
+                last_error = e
+                logger.warning(f"未知错误 (尝试 {retries+1}/{max_retries}): {url}, 错误: {e}")
+            
+            retries += 1
+            if retries < max_retries:
+                # 指数退避重试
+                await asyncio.sleep(2 ** retries)
+        
+        logger.error(f"获取失败 {url}: {last_error}")
+        raise last_error or Exception(f"获取失败: {url}")
     
     async def fetch_json(self, url: str, **kwargs) -> Dict[str, Any]:
         """获取JSON数据"""

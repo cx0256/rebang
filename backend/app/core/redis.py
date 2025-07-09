@@ -197,8 +197,23 @@ class RedisManager:
             logger.error(f"Redis decr error: {e}")
             return 0
 
+    async def delete_pattern(self, pattern: str) -> int:
+        """删除匹配模式的所有键"""
+        if not self.connected or not self.redis_client:
+            return 0
+        
+        try:
+            keys_to_delete = await self.keys(pattern)
+            if not keys_to_delete:
+                return 0
+            
+            deleted_count = await self.redis_client.delete(*keys_to_delete)
+            return deleted_count
+        except Exception as e:
+            logger.error(f"Redis delete_pattern error: {e}")
+            return 0
 
-# 创建全局Redis管理器实例
+# 全局Redis管理器实例
 redis_manager = RedisManager()
 
 

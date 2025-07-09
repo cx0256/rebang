@@ -5,8 +5,44 @@ echo           Rebang Project Stop
 echo ========================================
 echo.
 
-echo [1/3] Stopping database services...
-docker compose down
+echo [1/4] Stopping backend service...
+echo Stopping Docker backend service...
+docker compose stop backend >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [OK] Docker backend service stopped
+) else (
+    echo [INFO] No Docker backend service running
+)
+
+echo Stopping smart-built Docker backend...
+docker stop rebang-backend-smart >nul 2>&1
+docker rm rebang-backend-smart >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [OK] Smart-built Docker backend stopped
+) else (
+    echo [INFO] No smart-built Docker backend running
+)
+
+echo Stopping fallback Docker backend...
+docker stop rebang-backend-fallback >nul 2>&1
+docker rm rebang-backend-fallback >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [OK] Fallback Docker backend stopped
+) else (
+    echo [INFO] No fallback Docker backend running
+)
+
+echo Stopping local backend service...
+taskkill /f /im python.exe >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [OK] Local backend service stopped
+) else (
+    echo [INFO] No local Python processes found
+)
+
+echo.
+echo [2/4] Stopping database services...
+docker compose stop postgres redis >nul 2>&1
 if %errorlevel% equ 0 (
     echo [OK] Database services stopped
 ) else (
@@ -14,7 +50,7 @@ if %errorlevel% equ 0 (
 )
 
 echo.
-echo [2/3] Stopping frontend service...
+echo [3/4] Stopping frontend service...
 taskkill /f /im node.exe >nul 2>&1
 if %errorlevel% equ 0 (
     echo [OK] Frontend service stopped
@@ -23,12 +59,12 @@ if %errorlevel% equ 0 (
 )
 
 echo.
-echo [3/3] Stopping backend service...
-taskkill /f /im python.exe >nul 2>&1
+echo [4/4] Cleaning up Docker containers...
+docker compose down >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [OK] Backend service stopped
+    echo [OK] All Docker containers cleaned up
 ) else (
-    echo [INFO] No running Python processes found
+    echo [INFO] No Docker containers to clean up
 )
 
 echo.

@@ -28,9 +28,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: rebang-backend-huawei
     container_name: momoyu_backend
     ports:
       - "8000:8000"
@@ -45,8 +43,6 @@ services:
     volumes:
       - ./backend:/app
     restart: unless-stopped
-    profiles:
-      - production
 
   frontend:
     build:

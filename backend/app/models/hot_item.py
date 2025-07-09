@@ -14,7 +14,7 @@ class HotItem(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False, index=True, comment="所属分类ID")
     title = Column(String(500), nullable=False, comment="标题")
-    url = Column(String(1000), comment="链接地址")
+    url = Column(String(2000), comment="链接地址")
     description = Column(Text, comment="描述")
     author = Column(String(100), comment="作者")
     score = Column(Integer, default=0, comment="热度分数")

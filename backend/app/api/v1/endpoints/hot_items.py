@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.database import get_db
 from app.services.hot_list_service import HotListService
@@ -33,7 +33,7 @@ async def get_hot_items(
     if category_name:
         filters['category_name'] = category_name
     if hours:
-        filters['crawled_after'] = datetime.utcnow() - timedelta(hours=hours)
+        filters['crawled_after'] = datetime.now(timezone.utc) - timedelta(hours=hours)
     
     # 分页参数
     pagination = PaginationParams(page=page, size=size)
@@ -120,7 +120,7 @@ async def search_hot_items(
     if category_name:
         filters['category_name'] = category_name
     if hours:
-        filters['crawled_after'] = datetime.utcnow() - timedelta(hours=hours)
+        filters['crawled_after'] = datetime.now(timezone.utc) - timedelta(hours=hours)
     
     # 分页参数
     pagination = PaginationParams(page=page, size=size)

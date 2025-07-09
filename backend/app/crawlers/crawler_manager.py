@@ -98,24 +98,65 @@ class CrawlerManager:
                     platform = await self._get_or_create_platform(db, platform_name)
                     category = await self._get_or_create_category(db, platform.id, category_name)
                     
-                    # 保存热榜条目
+                    # 查询当前分类下的所有热榜条目URL，用于去重
+                    from sqlalchemy import select
+                    stmt = select(HotItemModel.url).where(HotItemModel.category_id == category.id)
+                    result = await db.execute(stmt)
+                    existing_urls = {row[0] for row in result.fetchall()}
+                    
+                    # 保存热榜条目（去重）
+                    new_items_count = 0
+                    updated_items_count = 0
+                    
                     for item in items:
-                        hot_item = HotItemModel(
-                            platform_id=platform.id,
-                            category_id=category.id,
-                            title=item.title,
-                            url=item.url,
-                            rank=item.rank,
-                            hot_value=item.hot_value,
-                            author=item.author,
-                            comment_count=item.comment_count,
-                            summary=item.summary,
-                            crawled_at=datetime.now()
-                        )
-                        db.add(hot_item)
+                        # 检查URL是否已存在
+                        if item.url in existing_urls:
+                            # 更新已存在的条目（仅更新排名和热度）
+                            stmt = select(HotItemModel).where(
+                                HotItemModel.category_id == category.id,
+                                HotItemModel.url == item.url
+                            )
+                            result = await db.execute(stmt)
+                            existing_item = result.scalar_one_or_none()
+                            
+                            if existing_item:
+                                existing_item.rank_position = item.rank
+                                existing_item.score = int(item.hot_value) if item.hot_value and item.hot_value.isdigit() else 0
+                                existing_item.comment_count = item.comment_count or 0
+                                existing_item.crawled_at = datetime.now()
+                                updated_items_count += 1
+                        else:
+                            # 创建新条目
+                            hot_item = HotItemModel(
+                                category_id=category.id,
+                                title=item.title,
+                                url=item.url,
+                                rank_position=item.rank,
+                                score=int(item.hot_value) if item.hot_value and item.hot_value.isdigit() else 0,
+                                author=item.author,
+                                comment_count=item.comment_count or 0,
+                                description=item.summary,
+                                published_at=item.publish_time,
+                                tags=item.tags,
+                                crawled_at=datetime.now()
+                            )
+                            db.add(hot_item)
+                            existing_urls.add(item.url)  # 添加到已存在URL集合中
+                            new_items_count += 1
+                    
+                    # 清理旧数据，只保留最新的30条
+                    from sqlalchemy import desc
+                    stmt = select(HotItemModel).where(
+                        HotItemModel.category_id == category.id
+                    ).order_by(desc(HotItemModel.crawled_at)).offset(30)
+                    result = await db.execute(stmt)
+                    old_items = result.scalars().all()
+                    
+                    for old_item in old_items:
+                        await db.delete(old_item)
                     
                     await db.commit()
-                    logger.info(f"保存 {crawler_name} 的 {len(items)} 条数据到数据库")
+                    logger.info(f"保存 {crawler_name} 数据: 新增 {new_items_count} 条, 更新 {updated_items_count} 条, 删除 {len(old_items)} 条旧数据")
                 
             except Exception as e:
                 logger.error(f"保存数据到数据库失败: {e}")
@@ -128,6 +169,12 @@ class CrawlerManager:
         mapping = {
             'nga_zatan': ('NGA', '杂谈'),
             'zhihu_hot': ('知乎', '热榜'),
+            'weibo_hot': ('微博', '热榜'),
+            'toutiao_hot': ('今日头条', '热榜'),
+            'bilibili_hot': ('哔哩哔哩', '热榜'),
+            'hupu_hot': ('虎扑', '热榜'),
+            'ithome_hot': ('IT之家', '热榜'),
+            'zol_hot': ('中关村在线', '热榜'),
         }
         return mapping.get(crawler_name, ('Unknown', 'Unknown'))
     
@@ -152,6 +199,36 @@ class CrawlerManager:
                     'display_name': '知乎',
                     'base_url': 'https://www.zhihu.com',
                     'description': '知乎热榜内容'
+                },
+                '微博': {
+                    'display_name': '新浪微博',
+                    'base_url': 'https://weibo.com',
+                    'description': '微博热搜榜'
+                },
+                '今日头条': {
+                    'display_name': '今日头条',
+                    'base_url': 'https://www.toutiao.com',
+                    'description': '今日头条热榜'
+                },
+                '哔哩哔哩': {
+                    'display_name': '哔哩哔哩',
+                    'base_url': 'https://www.bilibili.com',
+                    'description': 'B站热门视频榜'
+                },
+                '虎扑': {
+                    'display_name': '虎扑体育',
+                    'base_url': 'https://bbs.hupu.com',
+                    'description': '虎扑热门话题'
+                },
+                'IT之家': {
+                    'display_name': 'IT之家',
+                    'base_url': 'https://www.ithome.com',
+                    'description': 'IT之家热门资讯'
+                },
+                '中关村在线': {
+                    'display_name': '中关村在线',
+                    'base_url': 'https://www.zol.com.cn',
+                    'description': '中关村在线热门内容'
                 }
             }
             
@@ -189,8 +266,7 @@ class CrawlerManager:
             category = Category(
                 platform_id=platform_id,
                 name=name,
-                display_name=name,
-                description=f'{name}分类'
+                display_name=name
             )
             db.add(category)
             await db.flush()  # 获取ID

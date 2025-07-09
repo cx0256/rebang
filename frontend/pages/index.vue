@@ -45,6 +45,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="ngaItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in ngaItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="hover:underline">{{ index + 1 }}. {{ item.title }}</a>
               </li>
@@ -65,6 +68,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="zhihuItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in zhihuItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
@@ -88,6 +94,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="techItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in techItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
@@ -111,6 +120,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="weiboItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in weiboItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
@@ -134,6 +146,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="bilibiliItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in bilibiliItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
@@ -157,6 +172,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="toutiaoItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in toutiaoItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
@@ -180,6 +198,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="hupuItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in hupuItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="hover:underline">{{ index + 1 }}. {{ item.title }}</a>
               </li>
@@ -200,6 +221,9 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
+              <li v-if="ithomeItems.length === 0" class="text-center py-4 text-gray-500">
+                <div class="text-xs">暂无数据</div>
+              </li>
               <li v-for="(item, index) in ithomeItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="hover:underline">{{ index + 1 }}. {{ item.title }}</a>
               </li>
@@ -524,13 +548,23 @@ const lastUpdateTimes = ref<Record<string, Date>>({})
 interface ApiResponse {
   success: boolean
   data: {
-    items: {
-      title: string
-      url: string
-      platform_name: string
-      hot_value: string | number
-      rank: number
+    hot_lists: {
+      platform_id: number
+      name: string
+      display_name: string
+      api_endpoint: string
+      items: {
+        title: string
+        url: string
+        hot_value?: string | number
+        rank_position?: number
+      }[]
+      total_count: number
+      last_updated: string | null
     }[]
+    total_platforms: number
+    total_items: number
+    last_updated: string
   }
 }
 
@@ -538,7 +572,7 @@ interface ApiResponse {
 const fetchHotItems = async () => {
   try {
     const config = useRuntimeConfig()
-    const response = await $fetch<ApiResponse>('/api/v1/hot/', {
+    const response = await $fetch<ApiResponse>('/api/v1/hot', {
       baseURL: config.public.apiBase,
       query: {
         hours: 24,
@@ -546,23 +580,25 @@ const fetchHotItems = async () => {
       }
     })
     
-    if (response.success && response.data) {
+    if (response.success && response.data && response.data.hot_lists) {
       // 按平台分组数据
       const groupedData: Record<string, HotItem[]> = {}
-      response.data.items.forEach((item) => {
-        const platform = item.platform_name
+      response.data.hot_lists.forEach((hotList) => {
+        const platform = hotList.display_name
         if (!groupedData[platform]) {
           groupedData[platform] = []
         }
-        groupedData[platform].push({
-          title: item.title,
-          url: item.url,
-          hot_value: item.hot_value,
-          rank: item.rank
+        hotList.items.forEach((item) => {
+          groupedData[platform].push({
+            title: item.title,
+            url: item.url,
+            hot_value: item.hot_value,
+            rank: item.rank_position
+          })
         })
       })
       
-      // 更新各平台数据
+      // 更新各平台数据，确保即使没有数据也显示空数组
       ngaItems.value = groupedData['NGA'] || []
       zhihuItems.value = groupedData['知乎'] || []
       weiboItems.value = groupedData['微博'] || []

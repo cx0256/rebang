@@ -56,8 +56,39 @@ echo [OK] Database initialization completed
 
 echo.
 echo [4/4] Starting application services...
-echo Starting backend service...
-start "Backend Service" cmd /k "cd /d backend && python -m venv .venv && .venv\Scripts\activate && set http_proxy= && set https_proxy= && set HTTP_PROXY= && set HTTPS_PROXY= && pip config unset global.proxy >nul 2>nul && pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn -r requirements.txt && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+echo Starting backend service in Docker...
+docker-compose up -d backend
+if %errorlevel% neq 0 (
+    echo [INFO] 'docker-compose' command failed, trying with 'docker compose'...
+    docker compose up -d backend
+    if %errorlevel% neq 0 (
+        echo [WARNING] Docker backend startup failed, trying smart build with multiple mirror sources...
+        echo Running smart build script...
+        call build-backend.bat
+        if %errorlevel% equ 0 (
+            echo Smart build successful, starting backend with built image...
+            docker run -d --name rebang-backend-smart -p 8000:8000 --network rebang_default rebang-backend
+            if %errorlevel% equ 0 (
+                echo [OK] Backend service started with smart-built Docker image
+            ) else (
+                echo [WARNING] Smart-built Docker failed to start, using local Python environment...
+                start "Backend Service" cmd /k "cd /d backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+                echo [OK] Backend service started locally
+            )
+        ) else (
+            echo [WARNING] Smart build failed!
+            echo [INFO] This might be due to Docker cache issues.
+            echo [INFO] You can run 'clean-docker.bat' to clear all cache and try again.
+            echo [INFO] Falling back to local Python environment...
+            start "Backend Service" cmd /k "cd /d backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+            echo [OK] Backend service started locally
+        )
+    ) else (
+        echo [OK] Backend service started in Docker
+    )
+) else (
+    echo [OK] Backend service started in Docker
+)
 
 echo Waiting for backend service to start...
 timeout /t 10 /nobreak >nul

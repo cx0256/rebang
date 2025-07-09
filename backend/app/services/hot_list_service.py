@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
 from sqlalchemy.orm import selectinload
 from loguru import logger
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.database import get_db
 from app.core.redis import redis_manager, cache_result
@@ -16,21 +16,14 @@ from app.models.hot_item import HotItem
 class HotListService:
     """热榜服务类"""
     
-    def __init__(self, db: Optional[AsyncSession] = None):
+    def __init__(self, db: AsyncSession):
         self.db = db
-    
-    async def _get_db(self) -> AsyncSession:
-        """获取数据库会话"""
-        if self.db:
-            return self.db
-        async for db in get_db():
-            return db
     
     @cache_result("hot_list:all", expire=settings.HOT_LIST_CACHE_TIME)
     async def get_all_hot_lists(self) -> Dict[str, Any]:
         """获取所有平台的热榜数据"""
         try:
-            db = await self._get_db()
+            db = self.db
             
             # 查询所有活跃平台及其分类和热榜数据
             stmt = (
@@ -43,54 +36,60 @@ class HotListService:
             )
             
             result = await db.execute(stmt)
-            platforms = result.scalars().all()
+            platforms = result.scalars().unique().all()
+            logger.info(f"Found {len(platforms)} active platforms.")
             
             # 构建响应数据
-            hot_lists = []
-            total_items = 0
-            
+            hot_lists_response = []
+            total_items_count = 0
+
             for platform in platforms:
-                platform_data = {
-                    "platform": platform.to_dict(),
-                    "categories": []
-                }
-                
+                all_items = []
                 for category in platform.categories:
                     if not category.is_active:
                         continue
-                    
+
                     # 获取最新的热榜数据（最近24小时内）
-                    recent_time = datetime.utcnow() - timedelta(hours=24)
+                    recent_time = datetime.now(timezone.utc) - timedelta(hours=24)
                     recent_items = [
                         item for item in category.hot_items
                         if item.crawled_at and item.crawled_at >= recent_time
                     ]
-                    
-                    # 按排名排序
-                    recent_items.sort(key=lambda x: x.rank_position or 999)
-                    
-                    category_data = {
-                        "category": category.to_simple_dict(),
-                        "items": [item.to_list_dict() for item in recent_items[:50]],
-                        "total_count": len(recent_items),
-                        "last_updated": max(
-                            [item.crawled_at for item in recent_items],
-                            default=None
-                        ).isoformat() if recent_items else None
-                    }
-                    
-                    platform_data["categories"].append(category_data)
-                    total_items += len(recent_items)
+                    all_items.extend(recent_items)
+
+                # 按排名排序
+                logger.info(f"Platform '{platform.name}' has {len(all_items)} items before sorting.")
+                all_items.sort(key=lambda x: x.rank_position or 999)
+                logger.info(f"Platform '{platform.name}' has {len(all_items)} items after sorting.")
                 
-                if platform_data["categories"]:
-                    hot_lists.append(platform_data)
-            
+                platform_hot_list = {
+                    "platform_id": platform.id,
+                    "name": platform.name,
+                    "display_name": platform.display_name,
+                    "api_endpoint": f"/api/v1/hot/{platform.name}",
+                    "items": [item.to_list_dict() for item in all_items[:30]], # 每个平台最多返回30条
+                    "total_count": len(all_items),
+                    "last_updated": max(
+                        [item.crawled_at for item in all_items],
+                        default=None
+                    ).isoformat() if all_items else None
+                }
+                
+                if platform_hot_list["items"]:
+                    hot_lists_response.append(platform_hot_list)
+                    total_items_count += len(platform_hot_list["items"])
+                    logger.info(f"Added '{platform.name}' to response with {len(platform_hot_list['items'])} items.")
+                else:
+                    logger.warning(f"Platform '{platform.name}' has no items to add to the response.")
+
             return {
                 "success": True,
-                "data": hot_lists,
-                "total_platforms": len(hot_lists),
-                "total_items": total_items,
-                "last_updated": datetime.utcnow().isoformat()
+                "data": {
+                    "hot_lists": hot_lists_response,
+                    "total_platforms": len(hot_lists_response),
+                    "total_items": total_items_count,
+                    "last_updated": datetime.now(timezone.utc).isoformat()
+                }
             }
             
         except Exception as e:
@@ -105,7 +104,7 @@ class HotListService:
     async def get_platform_hot_list(self, platform_name: str) -> Dict[str, Any]:
         """获取指定平台的热榜数据"""
         try:
-            db = await self._get_db()
+            db = self.db
             
             # 查询指定平台
             stmt = (
@@ -140,7 +139,7 @@ class HotListService:
                     continue
                 
                 # 获取最新的热榜数据
-                recent_time = datetime.utcnow() - timedelta(hours=24)
+                recent_time = datetime.now(timezone.utc) - timedelta(hours=24)
                 recent_items = [
                     item for item in category.hot_items
                     if item.crawled_at and item.crawled_at >= recent_time
@@ -151,7 +150,7 @@ class HotListService:
                 
                 category_data = {
                     "category": category.to_simple_dict(),
-                    "items": [item.to_list_dict() for item in recent_items[:50]],
+                    "items": [item.to_list_dict() for item in recent_items[:30]],
                     "total_count": len(recent_items),
                     "last_updated": max(
                         [item.crawled_at for item in recent_items],
@@ -169,7 +168,7 @@ class HotListService:
                     "categories": categories,
                     "total_items": total_items
                 },
-                "last_updated": datetime.utcnow().isoformat()
+                "last_updated": datetime.now(timezone.utc).isoformat()
             }
             
         except Exception as e:
@@ -188,7 +187,7 @@ class HotListService:
     ) -> Dict[str, Any]:
         """获取指定平台分类的热榜数据"""
         try:
-            db = await self._get_db()
+            db = self.db
             
             # 查询指定分类
             stmt = (
@@ -216,7 +215,7 @@ class HotListService:
                 }
             
             # 获取最新的热榜数据
-            recent_time = datetime.utcnow() - timedelta(hours=24)
+            recent_time = datetime.now(timezone.utc) - timedelta(hours=24)
             recent_items = [
                 item for item in category.hot_items
                 if item.crawled_at and item.crawled_at >= recent_time
@@ -256,7 +255,7 @@ class HotListService:
             db = await self._get_db()
             
             # 计算时间范围
-            since_time = datetime.utcnow() - timedelta(hours=hours)
+            since_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             
             # 查询热门条目（按热度分数排序）
             stmt = (
@@ -320,3 +319,49 @@ class HotListService:
         except Exception as e:
             logger.error(f"获取缓存状态失败: {e}")
             return {"error": str(e)}
+
+    async def get_hot_items_paginated(self, filters: Dict[str, Any], pagination: Any) -> Dict[str, Any]:
+        """获取分页的热榜条目"""
+        try:
+            db = self.db
+            query = (
+                select(HotItem)
+                .join(Category, HotItem.category_id == Category.id)
+                .join(Platform, Category.platform_id == Platform.id)
+                .options(selectinload(HotItem.category).selectinload(Category.platform))
+                .where(Platform.is_active == True, Category.is_active == True)
+            )
+
+            if filters:
+                if 'category_id' in filters:
+                    query = query.where(HotItem.category_id == filters['category_id'])
+                if 'platform_name' in filters:
+                    query = query.where(Platform.name == filters['platform_name'])
+                if 'category_name' in filters:
+                    query = query.where(Category.name == filters['category_name'])
+                if 'crawled_after' in filters:
+                    query = query.where(HotItem.crawled_at >= filters['crawled_after'])
+
+            # 获取总数
+            total_query = select(func.count()).select_from(query.subquery())
+            total_result = await db.execute(total_query)
+            total_items = total_result.scalar_one()
+
+            # 添加排序和分页
+            query = query.order_by(desc(HotItem.crawled_at), desc(HotItem.score))
+            query = query.offset((pagination.page - 1) * pagination.size).limit(pagination.size)
+
+            result = await db.execute(query)
+            items = result.scalars().unique().all()
+
+            return {
+                "hot_items": [item.to_dict() for item in items],
+                "total_items": total_items,
+                "page": pagination.page,
+                "size": pagination.size,
+                "total_pages": (total_items + pagination.size - 1) // pagination.size
+            }
+
+        except Exception as e:
+            logger.error(f"获取分页热榜失败: {e}")
+            raise

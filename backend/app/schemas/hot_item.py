@@ -31,11 +31,11 @@ class HotItemResponse(HotItemBase):
 
 class HotItemListResponse(BaseModel):
     """热榜条目列表响应模型"""
-    items: List[HotItemResponse]
-    total: int
+    hot_items: List[HotItemResponse]
+    total_items: int
     page: int
     size: int
-    pages: int
+    total_pages: int
 
     class Config:
         from_attributes = True

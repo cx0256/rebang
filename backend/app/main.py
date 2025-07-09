@@ -9,28 +9,41 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.v1.api import api_router
 from app.core.scheduler import scheduler
+from app.crawlers.crawler_manager import crawler_manager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    # 启动时执行
-    logger.info("Starting MoMoYu API Server...")
+    try:
+        # 启动时执行
+        logger.info("Starting MoMoYu API Server...")
+        
+        # 创建数据库表
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        # 启动定时任务调度器
+        scheduler.start()
+        logger.info("Scheduler started")
+
+        # 立即执行一次爬虫任务
+        try:
+            await crawler_manager.run_crawl_task()
+            logger.info("Initial crawl task executed successfully")
+        except Exception as e:
+            logger.error(f"Error during initial crawl task: {e}")
+        
+        yield
     
-    # 创建数据库表
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    # 启动定时任务调度器
-    scheduler.start()
-    logger.info("Scheduler started")
-    
-    yield
-    
-    # 关闭时执行
-    logger.info("Shutting down MoMoYu API Server...")
-    scheduler.shutdown()
-    logger.info("Scheduler stopped")
+    except Exception as e:
+        logger.error(f"Error during application lifespan: {e}")
+    finally:
+        # 关闭时执行
+        logger.info("Shutting down MoMoYu API Server...")
+        if scheduler.running:
+            scheduler.shutdown()
+            logger.info("Scheduler stopped")
 
 
 # 创建FastAPI应用实例

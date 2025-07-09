@@ -1,4 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
 
 from app.api.v1.endpoints import (
     platforms,
@@ -58,27 +61,32 @@ api_router.include_router(
 
 # 聚合热榜路由
 @api_router.get("/hot", tags=["hot-lists"])
-async def get_all_hot_lists():
+async def get_all_hot_lists(db: AsyncSession = Depends(get_db)):
     """获取所有平台的热榜数据"""
     from app.services.hot_list_service import HotListService
+    from loguru import logger
     
-    service = HotListService()
-    return await service.get_all_hot_lists()
+    logger.info("API endpoint /hot called")
+    service = HotListService(db)
+    logger.info("HotListService created, calling get_all_hot_lists")
+    result = await service.get_all_hot_lists()
+    logger.info(f"Service returned result: {type(result)}, keys: {result.keys() if isinstance(result, dict) else 'not dict'}")
+    return result
 
 
 @api_router.get("/hot/{platform_name}", tags=["hot-lists"])
-async def get_platform_hot_list(platform_name: str):
+async def get_platform_hot_list(platform_name: str, db: AsyncSession = Depends(get_db)):
     """获取指定平台的热榜数据"""
     from app.services.hot_list_service import HotListService
     
-    service = HotListService()
+    service = HotListService(db)
     return await service.get_platform_hot_list(platform_name)
 
 
 @api_router.get("/hot/{platform_name}/{category_name}", tags=["hot-lists"])
-async def get_category_hot_list(platform_name: str, category_name: str):
+async def get_category_hot_list(platform_name: str, category_name: str, db: AsyncSession = Depends(get_db)):
     """获取指定平台分类的热榜数据"""
     from app.services.hot_list_service import HotListService
     
-    service = HotListService()
+    service = HotListService(db)
     return await service.get_category_hot_list(platform_name, category_name)
