@@ -3,6 +3,9 @@ from typing import List
 from datetime import datetime
 import re
 import logging
+import json
+import os
+import aiohttp
 logger = logging.getLogger(__name__)
 
 from .base import BaseCrawler, HotItem
@@ -23,6 +26,10 @@ class NGACrawler(BaseCrawler):
             "https://bbs.nga.cn/thread.php?fid=414"  # 游戏综合讨论
         ]
         self.hot_url = self.hot_urls[0]
+        
+        # 加载保存的Cookie
+        cookie_string = self._load_cookies()
+        
         # 添加更真实的浏览器请求头来避免403错误
         self.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -41,13 +48,51 @@ class NGACrawler(BaseCrawler):
             'sec-ch-ua-platform': '"Windows"',
             'Referer': 'https://bbs.nga.cn/',
             'Cache-Control': 'max-age=0',
-            'Cookie': 'ngaPassportUid=0; ngaPassportCid=0; lastvisit=0; __ngaClientCheckThreadViewCount=1'
+            'Cookie': cookie_string
         })
+    
+    def _load_cookies(self) -> str:
+        """Load cookies from nga_cookies.json file"""
+        cookie_file = 'nga_cookies.json'
+        default_cookies = 'ngaPassportUid=0; ngaPassportCid=0; lastvisit=0; __ngaClientCheckThreadViewCount=1'
+        
+        try:
+            if os.path.exists(cookie_file):
+                with open(cookie_file, 'r', encoding='utf-8') as f:
+                    cookies_dict = json.load(f)
+                
+                # Convert dict to cookie string
+                cookie_parts = []
+                for key, value in cookies_dict.items():
+                    cookie_parts.append(f"{key}={value}")
+                
+                # Add default cookies if not present
+                if 'lastvisit' not in cookies_dict:
+                    cookie_parts.append('lastvisit=0')
+                if '__ngaClientCheckThreadViewCount' not in cookies_dict:
+                    cookie_parts.append('__ngaClientCheckThreadViewCount=1')
+                
+                cookie_string = '; '.join(cookie_parts)
+                logger.info(f"Loaded cookies from {cookie_file}: {len(cookies_dict)} cookies")
+                return cookie_string
+            else:
+                logger.warning(f"Cookie file {cookie_file} not found, using default cookies")
+                return default_cookies
+        except Exception as e:
+            logger.error(f"Failed to load cookies from {cookie_file}: {e}")
+            return default_cookies
     
     async def crawl(self) -> List[HotItem]:
         """爬取NGA杂谈热榜"""
         html = None
         soup = None
+        
+        # 确保session已创建
+        if not self.session:
+            self.session = aiohttp.ClientSession(
+                headers=self.headers,
+                timeout=aiohttp.ClientTimeout(total=30)
+            )
         
         # 尝试多个URL，直到成功获取数据
         for url in self.hot_urls:
@@ -152,6 +197,13 @@ class NGACrawler(BaseCrawler):
     async def get_topic_detail(self, topic_url: str) -> dict:
         """获取帖子详情"""
         try:
+            # 确保session已创建
+            if not self.session:
+                self.session = aiohttp.ClientSession(
+                    headers=self.headers,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                )
+            
             html = await self.fetch(topic_url)
             soup = self.parse_html(html)
             
