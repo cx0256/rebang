@@ -599,7 +599,7 @@ const fetchHotItems = async () => {
       })
       
       // 更新各平台数据，确保即使没有数据也显示空数组
-      ngaItems.value = groupedData['NGA'] || []
+      ngaItems.value = groupedData['NGA玩家社区'] || []
       zhihuItems.value = groupedData['知乎'] || []
       weiboItems.value = groupedData['微博'] || []
       bilibiliItems.value = groupedData['B站'] || []

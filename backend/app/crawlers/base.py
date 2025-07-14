@@ -24,6 +24,7 @@ class HotItem:
     summary: Optional[str] = None
     tags: Optional[List[str]] = None
     image_url: Optional[str] = None
+    extra_data: Optional[Dict[str, Any]] = None
 
 
 class BaseCrawler(ABC):

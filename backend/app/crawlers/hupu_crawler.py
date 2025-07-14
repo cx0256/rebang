@@ -30,13 +30,13 @@ class HupuCrawler(BaseCrawler):
             items = []
             rank = 1
             
-            # 查找热榜条目
-            hot_items = soup.find_all('li', class_='bbs-sl-web-post-layout')
+            # 查找热榜条目 - 更新选择器
+            hot_items = soup.find_all('li', class_='list-item')
             
             for item_li in hot_items[:30]:  # 取前30条
                 try:
                     # 提取标题和链接
-                    title_link = item_li.find('a', class_='truetit')
+                    title_link = item_li.find('a', class_='title')
                     if not title_link:
                         continue
                     
@@ -50,11 +50,11 @@ class HupuCrawler(BaseCrawler):
                         url = href
                     
                     # 提取作者
-                    author_link = item_li.find('a', class_='aulink')
+                    author_link = item_li.find('a', class_='author')
                     author = author_link.get_text(strip=True) if author_link else ''
                     
                     # 提取回复数
-                    reply_span = item_li.find('span', class_='ansour red')
+                    reply_span = item_li.find('span', class_='reply-count')
                     comment_count = 0
                     if reply_span:
                         reply_text = reply_span.get_text(strip=True)
@@ -63,7 +63,7 @@ class HupuCrawler(BaseCrawler):
                             comment_count = int(reply_match.group(1))
                     
                     # 提取发布时间
-                    time_span = item_li.find('span', class_='ansour')
+                    time_span = item_li.find('span', class_='time')
                     publish_time = datetime.now()
                     if time_span:
                         time_text = time_span.get_text(strip=True)
@@ -80,7 +80,7 @@ class HupuCrawler(BaseCrawler):
                                 publish_time = datetime.now().replace(minute=datetime.now().minute - minutes)
                     
                     # 提取板块信息
-                    forum_link = item_li.find('a', class_='ansour')
+                    forum_link = item_li.find('a', class_='forum')
                     forum = forum_link.get_text(strip=True) if forum_link else ''
                     tags = [forum] if forum else None
                     

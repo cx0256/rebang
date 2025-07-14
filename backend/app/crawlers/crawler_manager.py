@@ -2,8 +2,7 @@
 from typing import List, Dict, Any, Type
 from datetime import datetime
 import asyncio
-import logging
-logger = logging.getLogger(__name__)
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .base import BaseCrawler, HotItem
@@ -15,6 +14,9 @@ from .bilibili_crawler import BiliBiliCrawler
 from .hupu_crawler import HupuCrawler
 from .ithome_crawler import ITHomeCrawler
 from .zol_crawler import ZOLCrawler
+from .smzdm_crawler import SmzdmCrawler
+from .kr36_crawler import Kr36Crawler
+from .baidu_crawler import BaiduCrawler
 from app.core.database import get_db
 from app.models.platform import Platform
 from app.models.category import Category
@@ -27,14 +29,17 @@ class CrawlerManager:
     
     def __init__(self):
         self.crawlers: Dict[str, Type[BaseCrawler]] = {
-            # 'nga_zatan': NGACrawler,
-            # 'zhihu_hot': ZhihuCrawler,
+            'nga_zatan': NGACrawler,
+            'zhihu_hot': ZhihuCrawler,
             'weibo_hot': WeiboCrawler,
-            # 'toutiao_hot': ToutiaoCrawler,
-            # 'bilibili_hot': BiliBiliCrawler,
-            # 'hupu_hot': HupuCrawler,
-            # 'ithome_hot': ITHomeCrawler,
-            # 'zol_hot': ZOLCrawler,
+            'toutiao_hot': ToutiaoCrawler,
+            'bilibili_hot': BiliBiliCrawler,
+            'hupu_hot': HupuCrawler,
+            'ithome_hot': ITHomeCrawler,
+            'zol_hot': ZOLCrawler,
+            'smzdm_hot': SmzdmCrawler,
+            'kr36_hot': Kr36Crawler,
+            'baidu_hot': BaiduCrawler,
         }
     
     def register_crawler(self, name: str, crawler_class: Type[BaseCrawler]):
@@ -64,21 +69,21 @@ class CrawlerManager:
         logger.info("开始执行所有爬虫任务")
         
         tasks = []
-        for crawler_name in self.crawlers.keys():
-            task = asyncio.create_task(
-                self.crawl_single(crawler_name),
-                name=crawler_name
-            )
-            tasks.append((crawler_name, task))
+        for crawler_name, crawler_instance in self.crawlers.items():
+            tasks.append(self.crawl_single(crawler_name))
         
-        results = {}
-        for crawler_name, task in tasks:
-            try:
-                items = await task
-                results[crawler_name] = items
-            except Exception as e:
-                logger.error(f"爬虫任务 {crawler_name} 失败: {e}")
-                results[crawler_name] = []
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        all_results = {}
+        for i, result in enumerate(results):
+            crawler_name = list(self.crawlers.keys())[i]
+            if isinstance(result, Exception):
+                logger.error(f"爬虫 {crawler_name} 失败: {result}", exc_info=True)
+                all_results[crawler_name] = []
+            else:
+                all_results[crawler_name] = result
+        
+        return all_results
         
         total_items = sum(len(items) for items in results.values())
         logger.info(f"所有爬虫任务完成，共获取 {total_items} 条数据")
@@ -141,36 +146,28 @@ class CrawlerManager:
                                 crawled_at=datetime.now()
                             )
                             db.add(hot_item)
-                            try:
-                                db.add(hot_item)
-                                await db.flush([hot_item])
-                                existing_urls.add(item.url)
-                                new_items_count += 1
-                            except Exception as flush_error:
-                                logger.error(f"Failed to add hot_item: {item.title}, URL: {item.url}, Error: {flush_error}")
-                                await db.rollback()
-                                # 在回滚后，我们需要重新开始一个事务，但使用同一个会话
-                                # 在SQLAlchemy 1.4+中，begin_nested() 或一个新的 begin() 可以实现
-                                # 但在异步会话中，最简单的做法是继续循环，让下一个item在新的（隐式）事务中处理
-                                continue
+                            new_items_count += 1
 
-                    # 只有在没有发生flush错误的情况下才清理和提交
                     if new_items_count > 0 or updated_items_count > 0:
-                        # 清理旧数据，只保留最新的30条
-                        from sqlalchemy import desc
-                        stmt = select(HotItemModel).where(
-                            HotItemModel.category_id == category.id
-                        ).order_by(desc(HotItemModel.crawled_at)).offset(30)
-                        result = await db.execute(stmt)
-                        old_items = result.scalars().all()
-                        
-                        for old_item in old_items:
-                            await db.delete(old_item)
-                        
-                        await db.commit()
-                        logger.info(f"保存 {crawler_name} 数据: 新增 {new_items_count} 条, 更新 {updated_items_count} 条, 删除 {len(old_items)} 条旧数据")
-                    else:
-                        await db.rollback()
+                        try:
+                            # 清理旧数据
+                            from sqlalchemy import desc
+                            stmt = select(HotItemModel.id).where(
+                                HotItemModel.category_id == category.id
+                            ).order_by(desc(HotItemModel.crawled_at)).offset(30)
+                            result = await db.execute(stmt)
+                            old_item_ids = [row[0] for row in result.fetchall()]
+                            
+                            if old_item_ids:
+                                from sqlalchemy import delete
+                                delete_stmt = delete(HotItemModel).where(HotItemModel.id.in_(old_item_ids))
+                                await db.execute(delete_stmt)
+
+                            await db.commit()
+                            logger.info(f"保存 {crawler_name} 数据: 新增 {new_items_count} 条, 更新 {updated_items_count} 条, 删除 {len(old_item_ids)} 条旧数据")
+                        except Exception as e:
+                            logger.error(f"提交事务失败: {e}")
+                            await db.rollback()
 
             except Exception as e:
                 logger.error(f"保存数据到数据库失败: {e}")
@@ -189,6 +186,9 @@ class CrawlerManager:
             'hupu_hot': ('hupu', 'hot'),
             'ithome_hot': ('ithome', 'hot'),
             'zol_hot': ('zol', 'hot'),
+            'smzdm_hot': ('smzdm', 'hot'),
+            'kr36_hot': ('36kr', 'hot'),
+            'baidu_hot': ('baidu', 'hot'),
         }
         return mapping.get(crawler_name, ('Unknown', 'Unknown'))
     

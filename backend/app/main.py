@@ -10,6 +10,7 @@ from app.core.database import engine, Base
 from app.api.v1.api import api_router
 from app.core.scheduler import scheduler
 from app.crawlers.crawler_manager import crawler_manager
+from app.core.redis import redis_manager
 
 
 @asynccontextmanager
@@ -23,6 +24,9 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         
+        # 连接Redis
+        await redis_manager.connect()
+
         # 启动定时任务调度器
         scheduler.start()
         logger.info("Scheduler started")
@@ -31,7 +35,8 @@ async def lifespan(app: FastAPI):
         try:
             import asyncio
             await asyncio.sleep(5)  # 等待5秒，确保数据库准备就绪
-            await crawler_manager.run_crawl_task()
+            results = await crawler_manager.crawl_all()
+            await crawler_manager.save_to_database(results)
             logger.info("Initial crawl task executed successfully")
         except Exception as e:
             logger.error(f"Error during initial crawl task: {e}")
@@ -46,6 +51,9 @@ async def lifespan(app: FastAPI):
         if scheduler.running:
             scheduler.shutdown()
             logger.info("Scheduler stopped")
+        
+        # 断开Redis连接
+        await redis_manager.disconnect()
 
 
 # 创建FastAPI应用实例

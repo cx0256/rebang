@@ -38,16 +38,33 @@ class WeiboCrawler(BaseCrawler):
                         note = item_data.get('note', '')
                         title = f"{word} {note}".strip()
                         
-                        # 构建搜索URL
-                        url = f"https://s.weibo.com/weibo?q={word}" if word else ""
+                        # 构建搜索URL - 使用word_scheme或word
+                        word_scheme = item_data.get('word_scheme')
+                        if word_scheme:
+                            key = word_scheme
+                        else:
+                            key = f"#{word}" if word else ""
+                        
+                        url = f"https://s.weibo.com/weibo?q={key}&t=31&band_rank=1&Refer=top" if key else ""
                         
                         # 提取热度值
                         num = item_data.get('num', 0)
                         hot_value = f"{num}" if num else None
                         
-                        # 提取分类标签
-                        category = item_data.get('category', '')
-                        tags = [category] if category else None
+                        # 提取分类标签 - 使用flag_desc
+                        flag_desc = item_data.get('flag_desc', '')
+                        tags = [flag_desc] if flag_desc else None
+                        
+                        # 提取发布时间
+                        publish_time = None
+                        onboard_time = item_data.get('onboard_time')
+                        if onboard_time:
+                            try:
+                                publish_time = datetime.fromtimestamp(onboard_time)
+                            except (ValueError, TypeError):
+                                publish_time = datetime.now()
+                        else:
+                            publish_time = datetime.now()
                         
                         if title and url:
                             item = HotItem(
@@ -56,7 +73,7 @@ class WeiboCrawler(BaseCrawler):
                                 rank=idx,
                                 hot_value=hot_value,
                                 tags=tags,
-                                publish_time=datetime.now()
+                                publish_time=publish_time
                             )
                             items.append(item)
                     

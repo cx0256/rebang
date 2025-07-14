@@ -21,71 +21,99 @@ class BiliBiliCrawler(BaseCrawler):
         })
     
     async def crawl(self) -> List[HotItem]:
-        """爬取B站热榜"""
+        """爬取B站热门视频"""
         try:
+            # 使用B站API接口
+            api_url = "https://api.bilibili.com/x/web-interface/ranking/v2"
+            
+            # 设置API请求参数
+            params = {
+                'rid': 0,  # 全站排行
+                'type': 1,  # 日排行
+                'ps': 30   # 每页数量
+            }
+            
+            # 设置API请求的headers
+            api_headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/javascript, */*; q=0.01',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Referer': 'https://www.bilibili.com/',
+                'Origin': 'https://www.bilibili.com'
+            }
+            
+            logger.info(f"正在请求B站API: {api_url}")
+            
             # 获取热榜数据
-            data = await self.fetch_json(self.hot_url)
+            data = await self.fetch_json(api_url, params=params, headers=api_headers)
             
             items = []
             
-            if 'data' in data and 'list' in data['data']:
-                hot_list = data['data']['list']
+            # 解析API返回的数据
+            if data.get('code') == 0 and 'data' in data and 'list' in data['data']:
+                video_list = data['data']['list']
                 
-                for idx, item_data in enumerate(hot_list[:30], 1):  # 取前30条
+                for rank, video_data in enumerate(video_list[:30], 1):
                     try:
-                        # 提取基本信息
-                        title = item_data.get('title', '')
-                        bvid = item_data.get('bvid', '')
-                        url = f"{self.base_url}/video/{bvid}" if bvid else ""
+                        # 提取标题
+                        title = video_data.get('title', '').strip()
+                        if not title:
+                            continue
                         
-                        # 提取热度值
-                        score = item_data.get('score', 0)
-                        hot_value = f"{score}" if score else None
+                        # 构建URL
+                        bvid = video_data.get('bvid')
+                        aid = video_data.get('aid')
+                        if bvid:
+                            url = f"https://www.bilibili.com/video/{bvid}"
+                        elif aid:
+                            url = f"https://www.bilibili.com/video/av{aid}"
+                        else:
+                            continue
                         
-                        # 提取作者
-                        author = item_data.get('owner', {}).get('name', '') if item_data.get('owner') else ''
+                        # 提取UP主信息
+                        owner = video_data.get('owner', {})
+                        author = owner.get('name', '') if owner else ''
                         
-                        # 提取播放量和评论数
-                        play_count = item_data.get('stat', {}).get('view', 0) if item_data.get('stat') else 0
-                        comment_count = item_data.get('stat', {}).get('reply', 0) if item_data.get('stat') else 0
-                        
-                        # 提取分区
-                        tname = item_data.get('tname', '')
-                        tags = [tname] if tname else None
-                        
-                        # 提取图片
-                        image_url = item_data.get('pic', '')
+                        # 提取统计信息
+                        stat = video_data.get('stat', {})
+                        view_count = stat.get('view', 0) if stat else 0
+                        danmaku_count = stat.get('danmaku', 0) if stat else 0
                         
                         # 提取发布时间
-                        pub_timestamp = item_data.get('pubdate', 0)
-                        publish_time = datetime.fromtimestamp(pub_timestamp) if pub_timestamp else datetime.now()
+                        publish_time = None
+                        pubdate = video_data.get('pubdate')
+                        if pubdate:
+                            try:
+                                publish_time = datetime.fromtimestamp(pubdate)
+                            except (ValueError, TypeError):
+                                publish_time = datetime.now()
+                        else:
+                            publish_time = datetime.now()
                         
-                        if title and url:
-                            item = HotItem(
-                                title=title,
-                                url=url,
-                                rank=idx,
-                                hot_value=hot_value,
-                                author=author,
-                                comment_count=comment_count,
-                                tags=tags,
-                                image_url=image_url,
-                                publish_time=publish_time,
-                                extra_data={
-                                    "play_count": play_count,
-                                    "bvid": bvid
-                                }
-                            )
-                            items.append(item)
-                    
+                        # 提取描述
+                        description = video_data.get('desc', '')
+                        
+                        item = HotItem(
+                            title=title,
+                            url=url,
+                            rank=rank,
+                            hot_value=str(view_count),
+                            author=author,
+                            comment_count=str(danmaku_count),
+                            description=description[:200] if description else None,  # 限制描述长度
+                            publish_time=publish_time
+                        )
+                        items.append(item)
+                        
                     except Exception as e:
-                        logger.warning(f"解析B站热榜条目失败: {e}")
+                        logger.warning(f"解析B站视频数据失败: {e}")
                         continue
             
+            logger.info(f"成功解析到 {len(items)} 条B站视频")
             return items
             
         except Exception as e:
-            logger.error(f"爬取B站热榜失败: {e}")
+            logger.error(f"B站API请求异常: {e}")
             # 如果API失败，尝试爬取网页版
             return await self._crawl_web_version()
     

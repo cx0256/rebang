@@ -19,6 +19,42 @@ class HotListService:
     def __init__(self, db: AsyncSession):
         self.db = db
     
+    async def get_all_platforms(self) -> Dict[str, Any]:
+        """获取所有平台信息"""
+        try:
+            db = self.db
+            
+            # 查询所有活跃平台
+            stmt = (
+                select(Platform)
+                .where(Platform.is_active == True)
+                .order_by(Platform.id)
+            )
+            
+            result = await db.execute(stmt)
+            platforms = result.scalars().all()
+            
+            platforms_data = [{
+                "id": platform.id,
+                "name": platform.name,
+                "display_name": platform.display_name,
+                "description": platform.description,
+                "is_active": platform.is_active
+            } for platform in platforms]
+            
+            return {
+                "success": True,
+                "data": platforms_data
+            }
+            
+        except Exception as e:
+            logger.error(f"获取所有平台失败: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "data": []
+            }
+    
     @cache_result("hot_list:all", expire=settings.HOT_LIST_CACHE_TIME)
     async def get_all_hot_lists(self) -> Dict[str, Any]:
         """获取所有平台的热榜数据"""
