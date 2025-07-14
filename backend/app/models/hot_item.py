@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -21,7 +22,7 @@ class HotItem(Base):
     comment_count = Column(Integer, default=0, comment="评论数")
     rank_position = Column(Integer, index=True, comment="排名位置")
     source_id = Column(String(100), comment="原平台ID")
-    tags = Column(JSON, comment="标签数组")
+    tags = Column(ARRAY(String), comment="标签数组")
     
     # 时间戳
     published_at = Column(DateTime(timezone=True), comment="发布时间")

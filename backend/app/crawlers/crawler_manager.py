@@ -27,14 +27,14 @@ class CrawlerManager:
     
     def __init__(self):
         self.crawlers: Dict[str, Type[BaseCrawler]] = {
-            'nga_zatan': NGACrawler,
-            'zhihu_hot': ZhihuCrawler,
+            # 'nga_zatan': NGACrawler,
+            # 'zhihu_hot': ZhihuCrawler,
             'weibo_hot': WeiboCrawler,
-            'toutiao_hot': ToutiaoCrawler,
-            'bilibili_hot': BiliBiliCrawler,
-            'hupu_hot': HupuCrawler,
-            'ithome_hot': ITHomeCrawler,
-            'zol_hot': ZOLCrawler,
+            # 'toutiao_hot': ToutiaoCrawler,
+            # 'bilibili_hot': BiliBiliCrawler,
+            # 'hupu_hot': HupuCrawler,
+            # 'ithome_hot': ITHomeCrawler,
+            # 'zol_hot': ZOLCrawler,
         }
     
     def register_crawler(self, name: str, crawler_class: Type[BaseCrawler]):
@@ -137,27 +137,41 @@ class CrawlerManager:
                                 comment_count=item.comment_count or 0,
                                 description=item.summary,
                                 published_at=item.publish_time,
-                                tags=item.tags,
+                                tags=item.tags if item.tags else None,
                                 crawled_at=datetime.now()
                             )
                             db.add(hot_item)
-                            existing_urls.add(item.url)  # 添加到已存在URL集合中
-                            new_items_count += 1
-                    
-                    # 清理旧数据，只保留最新的30条
-                    from sqlalchemy import desc
-                    stmt = select(HotItemModel).where(
-                        HotItemModel.category_id == category.id
-                    ).order_by(desc(HotItemModel.crawled_at)).offset(30)
-                    result = await db.execute(stmt)
-                    old_items = result.scalars().all()
-                    
-                    for old_item in old_items:
-                        await db.delete(old_item)
-                    
-                    await db.commit()
-                    logger.info(f"保存 {crawler_name} 数据: 新增 {new_items_count} 条, 更新 {updated_items_count} 条, 删除 {len(old_items)} 条旧数据")
-                
+                            try:
+                                db.add(hot_item)
+                                await db.flush([hot_item])
+                                existing_urls.add(item.url)
+                                new_items_count += 1
+                            except Exception as flush_error:
+                                logger.error(f"Failed to add hot_item: {item.title}, URL: {item.url}, Error: {flush_error}")
+                                await db.rollback()
+                                # 在回滚后，我们需要重新开始一个事务，但使用同一个会话
+                                # 在SQLAlchemy 1.4+中，begin_nested() 或一个新的 begin() 可以实现
+                                # 但在异步会话中，最简单的做法是继续循环，让下一个item在新的（隐式）事务中处理
+                                continue
+
+                    # 只有在没有发生flush错误的情况下才清理和提交
+                    if new_items_count > 0 or updated_items_count > 0:
+                        # 清理旧数据，只保留最新的30条
+                        from sqlalchemy import desc
+                        stmt = select(HotItemModel).where(
+                            HotItemModel.category_id == category.id
+                        ).order_by(desc(HotItemModel.crawled_at)).offset(30)
+                        result = await db.execute(stmt)
+                        old_items = result.scalars().all()
+                        
+                        for old_item in old_items:
+                            await db.delete(old_item)
+                        
+                        await db.commit()
+                        logger.info(f"保存 {crawler_name} 数据: 新增 {new_items_count} 条, 更新 {updated_items_count} 条, 删除 {len(old_items)} 条旧数据")
+                    else:
+                        await db.rollback()
+
             except Exception as e:
                 logger.error(f"保存数据到数据库失败: {e}")
                 await db.rollback()
@@ -167,14 +181,14 @@ class CrawlerManager:
     def _parse_crawler_name(self, crawler_name: str) -> tuple:
         """解析爬虫名称获取平台和分类"""
         mapping = {
-            'nga_zatan': ('NGA', '杂谈'),
-            'zhihu_hot': ('知乎', '热榜'),
-            'weibo_hot': ('微博', '热榜'),
-            'toutiao_hot': ('今日头条', '热榜'),
-            'bilibili_hot': ('哔哩哔哩', '热榜'),
-            'hupu_hot': ('虎扑', '热榜'),
-            'ithome_hot': ('IT之家', '热榜'),
-            'zol_hot': ('中关村在线', '热榜'),
+            'nga_zatan': ('nga', 'zatan'),
+            'zhihu_hot': ('zhihu', 'hot'),
+            'weibo_hot': ('weibo', 'hot'),
+            'toutiao_hot': ('toutiao', 'hot'),
+            'bilibili_hot': ('bilibili', 'popular'),
+            'hupu_hot': ('hupu', 'hot'),
+            'ithome_hot': ('ithome', 'hot'),
+            'zol_hot': ('zol', 'hot'),
         }
         return mapping.get(crawler_name, ('Unknown', 'Unknown'))
     
@@ -189,64 +203,26 @@ class CrawlerManager:
         
         if not platform:
             # 创建新平台
-            platform_data = {
-                'NGA': {
-                    'display_name': 'NGA玩家社区',
-                    'base_url': 'https://bbs.nga.cn',
-                    'description': 'NGA玩家社区热门讨论'
-                },
-                '知乎': {
-                    'display_name': '知乎',
-                    'base_url': 'https://www.zhihu.com',
-                    'description': '知乎热榜内容'
-                },
-                '微博': {
-                    'display_name': '新浪微博',
-                    'base_url': 'https://weibo.com',
-                    'description': '微博热搜榜'
-                },
-                '今日头条': {
-                    'display_name': '今日头条',
-                    'base_url': 'https://www.toutiao.com',
-                    'description': '今日头条热榜'
-                },
-                '哔哩哔哩': {
-                    'display_name': '哔哩哔哩',
-                    'base_url': 'https://www.bilibili.com',
-                    'description': 'B站热门视频榜'
-                },
-                '虎扑': {
-                    'display_name': '虎扑体育',
-                    'base_url': 'https://bbs.hupu.com',
-                    'description': '虎扑热门话题'
-                },
-                'IT之家': {
-                    'display_name': 'IT之家',
-                    'base_url': 'https://www.ithome.com',
-                    'description': 'IT之家热门资讯'
-                },
-                '中关村在线': {
-                    'display_name': '中关村在线',
-                    'base_url': 'https://www.zol.com.cn',
-                    'description': '中关村在线热门内容'
-                }
+            platform_display_name_map = {
+                'nga': 'NGA玩家社区',
+                'zhihu': '知乎',
+                'weibo': '微博',
+                'toutiao': '今日头条',
+                'bilibili': 'B站',
+                'hupu': '虎扑',
+                'ithome': 'IT之家',
+                'zol': '中关村在线',
             }
-            
-            data = platform_data.get(name, {
-                'display_name': name,
-                'base_url': '',
-                'description': f'{name}平台'
-            })
+            display_name = platform_display_name_map.get(name, name)
             
             platform = Platform(
                 name=name,
-                display_name=data['display_name'],
-                base_url=data['base_url'],
-                description=data['description']
+                display_name=display_name,
+                # 其他字段可以根据需要设置默认值
             )
             db.add(platform)
-            await db.flush()  # 获取ID
-        
+            await db.flush()  # 立即获取ID
+
         return platform
     
     async def _get_or_create_category(self, db: AsyncSession, platform_id: int, name: str) -> Category:
@@ -263,14 +239,22 @@ class CrawlerManager:
         
         if not category:
             # 创建新分类
+            category_display_name_map = {
+                'hot': '热榜',
+                'zatan': '杂谈',
+                'popular': '热门',
+                # 根据需要添加更多映射
+            }
+            display_name = category_display_name_map.get(name, name.capitalize())
+
             category = Category(
                 platform_id=platform_id,
                 name=name,
-                display_name=name
+                display_name=display_name
             )
             db.add(category)
-            await db.flush()  # 获取ID
-        
+            await db.flush()  # 立即获取ID
+            
         return category
     
     async def run_crawl_task(self):

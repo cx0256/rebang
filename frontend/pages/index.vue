@@ -588,11 +588,11 @@ const fetchHotItems = async () => {
         if (!groupedData[platform]) {
           groupedData[platform] = []
         }
-        hotList.items.forEach((item) => {
+        hotList.items.forEach((item: any) => {
           groupedData[platform].push({
             title: item.title,
             url: item.url,
-            hot_value: item.hot_value,
+            hot_value: item.score || item.hot_value || item.comment_count || 0,
             rank: item.rank_position
           })
         })

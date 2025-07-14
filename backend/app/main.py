@@ -29,6 +29,8 @@ async def lifespan(app: FastAPI):
 
         # 立即执行一次爬虫任务
         try:
+            import asyncio
+            await asyncio.sleep(5)  # 等待5秒，确保数据库准备就绪
             await crawler_manager.run_crawl_task()
             logger.info("Initial crawl task executed successfully")
         except Exception as e:
