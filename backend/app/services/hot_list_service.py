@@ -157,7 +157,7 @@ class HotListService:
             )
             
             result = await db.execute(stmt)
-            platform = result.scalar_one_or_none()
+            platform = result.scalars().first()
             
             if not platform:
                 return {
@@ -241,7 +241,7 @@ class HotListService:
             )
             
             result = await db.execute(stmt)
-            category = result.scalar_one_or_none()
+            category = result.scalars().first()
             
             if not category:
                 return {

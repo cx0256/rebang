@@ -105,7 +105,7 @@ export const useHotList = () => {
       loading.value = true
       error.value = null
       
-      const response = await $api.get('/api/v1/hot-lists')
+      const response = await $api.get('/api/v1/hot')
       
       if (response.success && response.data) {
         return response.data
@@ -122,12 +122,12 @@ export const useHotList = () => {
   }
   
   // 获取平台热榜
-  const fetchPlatformHotList = async (platformId: number, refresh = false) => {
+  const fetchPlatformHotList = async (platformName: string, refresh = false) => {
     try {
       loading.value = true
       error.value = null
       
-      const response = await $api.get(`/api/v1/hot-lists/platform/${platformId}`)
+      const response = await $api.get(`/api/v1/hot/${platformName}`)
       
       if (response.success && response.data) {
         return response.data
@@ -144,12 +144,12 @@ export const useHotList = () => {
   }
   
   // 获取分类热榜
-  const fetchCategoryHotList = async (categoryId: number, refresh = false) => {
+  const fetchCategoryHotList = async (platformName: string, categoryName: string, refresh = false) => {
     try {
       loading.value = true
       error.value = null
       
-      const response = await $api.get(`/api/v1/hot-lists/category/${categoryId}`)
+      const response = await $api.get(`/api/v1/hot/${platformName}/${categoryName}`)
       
       if (response.success && response.data) {
         return response.data

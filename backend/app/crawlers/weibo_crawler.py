@@ -12,7 +12,7 @@ class WeiboCrawler(BaseCrawler):
     """微博热搜爬虫"""
     
     def __init__(self):
-        super().__init__("微博", "热搜")
+        super().__init__("微博", "hot")
         self.base_url = "https://weibo.com"
         self.hot_url = "https://weibo.com/ajax/side/hotSearch"
         self.headers.update({

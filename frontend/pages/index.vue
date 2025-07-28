@@ -45,7 +45,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="ngaItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="ngaItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in ngaItems" :key="index">
@@ -68,7 +68,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="zhihuItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="zhihuItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in zhihuItems" :key="index">
@@ -94,7 +94,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="techItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="techItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in techItems" :key="index">
@@ -120,7 +120,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="weiboItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="weiboItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in weiboItems" :key="index">
@@ -146,7 +146,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="bilibiliItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="bilibiliItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in bilibiliItems" :key="index">
@@ -172,7 +172,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="toutiaoItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="toutiaoItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in toutiaoItems" :key="index">
@@ -198,7 +198,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="hupuItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="hupuItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in hupuItems" :key="index">
@@ -221,7 +221,7 @@
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
-              <li v-if="ithomeItems.length === 0" class="text-center py-4 text-gray-500">
+              <li v-if="ithomeItems.length === 0" class="py-4 text-center text-gray-500">
                 <div class="text-xs">暂无数据</div>
               </li>
               <li v-for="(item, index) in ithomeItems" :key="index">
@@ -602,6 +602,7 @@ const fetchHotItems = async () => {
       ngaItems.value = groupedData['NGA玩家社区'] || []
       zhihuItems.value = groupedData['知乎'] || []
       weiboItems.value = groupedData['微博'] || []
+      techItems.value = groupedData['什么值得买'] || []
       bilibiliItems.value = groupedData['B站'] || []
       toutiaoItems.value = groupedData['今日头条'] || []
       hupuItems.value = groupedData['虎扑'] || []

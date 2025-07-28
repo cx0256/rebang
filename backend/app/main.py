@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
     finally:
         # 关闭时执行
         logger.info("Shutting down MoMoYu API Server...")
-        if scheduler.running:
+        if scheduler.is_running:
             scheduler.shutdown()
             logger.info("Scheduler stopped")
         

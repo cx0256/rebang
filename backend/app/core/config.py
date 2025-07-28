@@ -13,11 +13,11 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # 服务器配置
-    HOST: str = "lo"
+    HOST: str = "localhost"
     PORT: int = 8000
     
     # 数据库配置
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/momoyu"
+    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/rebang"
     DATABASE_ECHO: bool = False  # 是否打印SQL语句
     
     # Redis配置

@@ -122,7 +122,7 @@ class CrawlerManager:
                                 HotItemModel.url == item.url
                             )
                             result = await db.execute(stmt)
-                            existing_item = result.scalar_one_or_none()
+                            existing_item = result.scalars().first()
                             
                             if existing_item:
                                 existing_item.rank_position = item.rank
@@ -199,7 +199,7 @@ class CrawlerManager:
         # 查找现有平台
         stmt = select(Platform).where(Platform.name == name)
         result = await db.execute(stmt)
-        platform = result.scalar_one_or_none()
+        platform = result.scalars().first()
         
         if not platform:
             # 创建新平台
@@ -212,6 +212,9 @@ class CrawlerManager:
                 'hupu': '虎扑',
                 'ithome': 'IT之家',
                 'zol': '中关村在线',
+                'smzdm': '什么值得买',
+                '36kr': '36氪',
+                'baidu': '百度',
             }
             display_name = platform_display_name_map.get(name, name)
             
@@ -235,7 +238,7 @@ class CrawlerManager:
             Category.name == name
         )
         result = await db.execute(stmt)
-        category = result.scalar_one_or_none()
+        category = result.scalars().first()
         
         if not category:
             # 创建新分类

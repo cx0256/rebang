@@ -23,99 +23,148 @@ class BiliBiliCrawler(BaseCrawler):
     async def crawl(self) -> List[HotItem]:
         """爬取B站热门视频"""
         try:
-            # 使用B站API接口
-            api_url = "https://api.bilibili.com/x/web-interface/ranking/v2"
+            # 先尝试API接口
+            api_items = await self._crawl_api_version()
+            if api_items:
+                return api_items
             
-            # 设置API请求参数
-            params = {
-                'rid': 0,  # 全站排行
-                'type': 1,  # 日排行
-                'ps': 30   # 每页数量
-            }
-            
-            # 设置API请求的headers
-            api_headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/javascript, */*; q=0.01',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Referer': 'https://www.bilibili.com/',
-                'Origin': 'https://www.bilibili.com'
-            }
-            
-            logger.info(f"正在请求B站API: {api_url}")
-            
-            # 获取热榜数据
-            data = await self.fetch_json(api_url, params=params, headers=api_headers)
+            # API失败则使用网页版爬取
+            web_url = "https://www.bilibili.com/v/popular/rank/all"
+            html = await self.fetch(web_url)
+            soup = self.parse_html(html)
             
             items = []
+            rank = 1
             
-            # 解析API返回的数据
-            if data.get('code') == 0 and 'data' in data and 'list' in data['data']:
-                video_list = data['data']['list']
-                
-                for rank, video_data in enumerate(video_list[:30], 1):
-                    try:
-                        # 提取标题
-                        title = video_data.get('title', '').strip()
-                        if not title:
-                            continue
-                        
-                        # 构建URL
-                        bvid = video_data.get('bvid')
-                        aid = video_data.get('aid')
-                        if bvid:
-                            url = f"https://www.bilibili.com/video/{bvid}"
-                        elif aid:
-                            url = f"https://www.bilibili.com/video/av{aid}"
-                        else:
-                            continue
-                        
-                        # 提取UP主信息
-                        owner = video_data.get('owner', {})
-                        author = owner.get('name', '') if owner else ''
-                        
-                        # 提取统计信息
-                        stat = video_data.get('stat', {})
-                        view_count = stat.get('view', 0) if stat else 0
-                        danmaku_count = stat.get('danmaku', 0) if stat else 0
-                        
-                        # 提取发布时间
-                        publish_time = None
-                        pubdate = video_data.get('pubdate')
-                        if pubdate:
-                            try:
-                                publish_time = datetime.fromtimestamp(pubdate)
-                            except (ValueError, TypeError):
-                                publish_time = datetime.now()
-                        else:
-                            publish_time = datetime.now()
-                        
-                        # 提取描述
-                        description = video_data.get('desc', '')
-                        
+            # 查找热榜条目 - 更新选择器
+            hot_items = soup.find_all('div', class_='rank-item')
+            if not hot_items:
+                # 尝试其他可能的选择器
+                hot_items = soup.find_all('li', class_='rank-item')
+            if not hot_items:
+                hot_items = soup.find_all('div', class_='video-card')
+            
+            logger.info(f"找到 {len(hot_items)} 个热榜条目")
+            
+            for item_div in hot_items[:30]:  # 取前30条
+                try:
+                    # 提取标题和链接
+                    title_link = item_div.find('a', class_='title') or item_div.find('a')
+                    if not title_link:
+                        continue
+                    
+                    title = title_link.get_text(strip=True)
+                    href = title_link.get('href', '')
+                    
+                    # 构建完整URL
+                    if href.startswith('//'):
+                        url = "https:" + href
+                    elif href.startswith('/'):
+                        url = self.base_url + href
+                    else:
+                        url = href
+                    
+                    # 提取作者
+                    author = ''
+                    author_elem = item_div.find('span', class_='up-name') or item_div.find('a', class_='up-name')
+                    if author_elem:
+                        author = author_elem.get_text(strip=True)
+                    
+                    # 提取播放量
+                    hot_value = ''
+                    play_elem = item_div.find('span', class_='play-text') or item_div.find('div', class_='play')
+                    if play_elem:
+                        hot_value = play_elem.get_text(strip=True)
+                    
+                    # 提取图片
+                    img_tag = item_div.find('img')
+                    image_url = img_tag.get('src', '') if img_tag else None
+                    
+                    if title and url:
                         item = HotItem(
                             title=title,
                             url=url,
                             rank=rank,
-                            hot_value=str(view_count),
                             author=author,
-                            comment_count=str(danmaku_count),
-                            description=description[:200] if description else None,  # 限制描述长度
-                            publish_time=publish_time
+                            hot_value=hot_value,
+                            image_url=image_url,
+                            publish_time=datetime.now()
                         )
                         items.append(item)
-                        
-                    except Exception as e:
-                        logger.warning(f"解析B站视频数据失败: {e}")
-                        continue
+                        rank += 1
+                        logger.debug(f"解析到B站视频: {title}")
+                
+                except Exception as e:
+                    logger.warning(f"解析B站热榜条目失败: {e}")
+                    continue
             
             logger.info(f"成功解析到 {len(items)} 条B站视频")
             return items
             
         except Exception as e:
-            logger.error(f"B站API请求异常: {e}")
-            # 如果API失败，尝试爬取网页版
-            return await self._crawl_web_version()
+            logger.error(f"爬取B站热榜失败: {e}")
+            return []
+    
+    async def _crawl_api_version(self) -> List[HotItem]:
+        """使用API接口爬取B站热榜"""
+        try:
+            import json
+            api_url = "https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all"
+            response = await self.fetch(api_url)
+            
+            # 尝试解析JSON
+            try:
+                data = json.loads(response)
+                if data.get('code') == 0 and data.get('data'):
+                    items = []
+                    rank = 1
+                    
+                    for video in data['data']['list'][:30]:
+                        try:
+                            title = video.get('title', '')
+                            bvid = video.get('bvid', '')
+                            url = f"https://www.bilibili.com/video/{bvid}" if bvid else ''
+                            
+                            # 获取UP主信息
+                            owner = video.get('owner', {})
+                            author = owner.get('name', '')
+                            
+                            # 获取统计信息
+                            stat = video.get('stat', {})
+                            view_count = stat.get('view', 0)
+                            hot_value = f"{view_count}播放"
+                            
+                            # 获取封面
+                            pic = video.get('pic', '')
+                            
+                            if title and url:
+                                item = HotItem(
+                                    title=title,
+                                    url=url,
+                                    rank=rank,
+                                    author=author,
+                                    hot_value=hot_value,
+                                    image_url=pic,
+                                    publish_time=datetime.now()
+                                )
+                                items.append(item)
+                                rank += 1
+                                logger.debug(f"解析到B站视频: {title}")
+                        
+                        except Exception as e:
+                            logger.warning(f"解析B站API视频数据失败: {e}")
+                            continue
+                    
+                    logger.info(f"通过API成功解析到 {len(items)} 条B站视频")
+                    return items
+            
+            except json.JSONDecodeError:
+                logger.warning("B站API返回的不是有效JSON")
+                return []
+                
+        except Exception as e:
+            logger.error(f"B站API爬取失败: {e}")
+            return []
     
     async def _crawl_web_version(self) -> List[HotItem]:
         """爬取B站热榜网页版（备用方案）"""
