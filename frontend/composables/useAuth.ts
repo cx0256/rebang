@@ -39,7 +39,20 @@ export const useAuth = () => {
   }
   
   async function register(userData: UserCreate) {
-    return await $api.post('/v1/auth/register', userData)
+    try {
+      const response = await $api.post<{ message: string }>('/v1/auth/register', userData)
+      
+      if (response) {
+        return { success: true, message: response.message || 'Registration successful' }
+      } else {
+        return { success: false, error: 'Registration failed' }
+      }
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || error.message || 'Registration failed' 
+      }
+    }
   }
 
   async function fetchUser() {

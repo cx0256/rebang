@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -80,7 +81,8 @@ async def get_platform_hot_list(platform_name: str, db: AsyncSession = Depends(g
     from app.services.hot_list_service import HotListService
     
     service = HotListService(db)
-    return await service.get_platform_hot_list(platform_name)
+    result = await service.get_platform_hot_list(platform_name)
+    return JSONResponse(content=result, media_type="application/json; charset=utf-8")
 
 
 @api_router.get("/hot/{platform_name}/{category_name}", tags=["hot-lists"])

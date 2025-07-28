@@ -4,25 +4,31 @@
     <header class="flex sticky top-0 z-50 justify-between items-center p-4 border-b my-header">
       <div class="flex gap-4 items-center">
         <img class="h-8 logo md:h-9" src="https://momoyu.cc/assets/logo-1-DXR4uO3F.png" alt="logo">
-        <div class="relative">
-          <input type="text" class="px-3 py-1.5 w-48 rounded-md md:w-64 input search" placeholder="搜索 ...">
+        <div class="relative search-container">
+          <input v-model="searchQuery" @input="handleSearch" type="text" class="px-3 py-1.5 w-48 rounded-md md:w-64 input search" placeholder="Search hot topics...">
+          <div v-if="searchResults.length > 0" class="overflow-y-auto absolute right-0 left-0 top-full z-50 mt-1 max-h-60 rounded-md border border-gray-600 shadow-lg bg-card">
+            <div v-for="(result, index) in searchResults" :key="index" @click="selectSearchResult(result.url)" class="px-3 py-2 border-b border-gray-600 cursor-pointer hover:bg-gray-700 last:border-b-0">
+              <div class="text-sm text-primary">{{ result.title }}</div>
+              <div class="text-xs text-secondary">{{ result.source }}</div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="flex gap-3 items-center">
         <!-- 登录状态显示 -->
         <div v-if="!isAuthenticated" class="flex gap-2">
-          <button @click="showLoginModal = true" class="px-4 py-1.5 text-sm font-semibold btn btn-green-full">登录</button>
-          <button @click="showRegisterModal = true" class="px-4 py-1.5 text-sm font-semibold btn btn-blue-full">注册</button>
+          <button @click="showLoginModal = true" class="px-4 py-1.5 text-sm font-semibold btn btn-green-full">Login</button>
+          <button @click="showRegisterModal = true" class="px-4 py-1.5 text-sm font-semibold btn btn-blue-full">Register</button>
         </div>
         <div v-else class="flex gap-2 items-center">
-          <span class="text-sm text-secondary">欢迎，{{ user?.username }}</span>
-          <button @click="handleLogout" class="px-4 py-1.5 text-sm font-semibold btn btn-red-full">退出登录</button>
+          <span class="text-sm text-secondary">Welcome, {{ user?.username }}</span>
+          <button @click="handleLogout" class="px-4 py-1.5 text-sm font-semibold btn btn-red-full">Logout</button>
         </div>
         
-        <button @click="toggleTheme" class="px-4 py-1.5 text-xs font-semibold text-white bg-red-600 rounded-md btn btn-red hover:bg-red-700">{{ isStealthMode ? '退出隐身' : '隐身模式' }}</button>
         <div class="sidebar-btn">
-          <svg @click="toggleTheme" xmlns="http://www.w3.org/2000/svg" id="theme-toggle-icon" class="w-6 h-6 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          <svg @click="toggleDarkMode" xmlns="http://www.w3.org/2000/svg" id="theme-toggle-icon" class="w-6 h-6 transition-transform cursor-pointer hover:scale-110" :class="isDarkMode ? 'text-yellow-400' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path v-if="!isDarkMode" stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            <path v-else stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
           </svg>
         </div>
       </div>
@@ -39,9 +45,13 @@
               <div class="flex justify-between items-center hot-title-inner">
                 <a class="flex gap-2 items-center hot-logo" href="#">
                   <svg class="w-5 h-5" style="color: #315f81;" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 3.5a.75.75 0 00-1.5 0v3.542L5.822 9.47a.75.75 0 00-.53 1.28L9.25 12.5v4.75a.75.75 0 001.5 0v-4.75l3.958-1.75a.75.75 0 00-.53-1.28L10.75 7.042V3.5z"></path></svg>
-                  <span class="text-sm font-semibold hot-title-name">NGA杂谈 <span class="text-xs font-normal hot-title-time">(16分钟前)</span></span>
+                  <span class="text-sm font-semibold hot-title-name">NGA杂谈 <span class="text-xs font-normal hot-title-time">({{ getTimeAgo('nga') }})</span></span>
                 </a>
-                <svg class="w-4 h-4 cursor-pointer" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button @click="refreshPlatformData('nga')" :disabled="refreshingPlatforms.nga" class="p-1.5 rounded-full transition-all hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" :title="refreshingPlatforms.nga ? 'Refreshing...' : 'Refresh NGA data'">
+                  <svg class="w-4 h-4" :class="{ 'animate-spin text-blue-400': refreshingPlatforms.nga }" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
@@ -62,9 +72,13 @@
               <div class="flex justify-between items-center hot-title-inner">
                 <a class="flex gap-2 items-center hot-logo" href="#">
                   <svg class="w-5 h-5" style="color: #0177d7;" fill="currentColor" viewBox="0 0 24 24"><path d="M22.083 12.61a2.122 2.122 0 0 1-1.928-2.612c.2-1.114.786-3.98 1.417-5.917C21.833 3.333 21.083 3 20.25 3h-2.5c-.5 0-1.083.25-1.417.833L15.25 5.5c-1.333.917-2.5 1.5-4.25 1.5-1.167 0-2.417-.333-3.5-1.083L6.417 5c-.167-.167-.417-.333-.75-.333H3.75c-.833 0-1.25.333-1.083 1.25.25 1.25.75 3.917 1.417 5.917.333.917 1.25 1.667 2.333 1.667.5 0 1.083-.167 1.5-.5.25-.167.417-.417.583-.667.333-.5.5-1 .583-1.417a2.84 2.84 0 0 1 1.667-1.75c1.167-.5 2.5-.75 3.75-.75s2.583.25 3.75.75a2.84 2.84 0 0 1 1.667 1.75c.083.417.25.917.583 1.417.167.25.333.5.583.667.417.333 1 .5 1.5.5.917 0 1.917-.75 2.333-1.667Z"></path></svg>
-                  <span class="text-sm font-semibold hot-title-name">知乎热榜 <span class="text-xs font-normal hot-title-time">(23分钟前)</span></span>
+                  <span class="text-sm font-semibold hot-title-name">知乎热榜 <span class="text-xs font-normal hot-title-time">({{ getTimeAgo('zhihu') }})</span></span>
                 </a>
-                <svg class="w-4 h-4 cursor-pointer" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button @click="refreshPlatformData('zhihu')" :disabled="refreshingPlatforms.zhihu" class="p-1.5 rounded-full transition-all hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" :title="refreshingPlatforms.zhihu ? 'Refreshing...' : 'Refresh Zhihu data'">
+                  <svg class="w-4 h-4" :class="{ 'animate-spin text-blue-400': refreshingPlatforms.zhihu }" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
@@ -74,7 +88,7 @@
               <li v-for="(item, index) in zhihuItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
-                  <span class="flex-shrink-0 ml-2 hotness">{{ item.hot_value }}</span>
+                  <span v-if="formatHotValue(item.hot_value)" class="flex-shrink-0 ml-2 hotness">{{ formatHotValue(item.hot_value) }}</span>
                 </a>
               </li>
             </ul>
@@ -88,9 +102,13 @@
               <div class="flex justify-between items-center hot-title-inner">
                 <a class="flex gap-2 items-center hot-logo" href="#">
                   <svg class="w-5 h-5" style="color: #ff6b35;" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path></svg>
-                  <span class="text-sm font-semibold hot-title-name">值得买 <span class="text-xs font-normal hot-title-time">(18分钟前)</span></span>
+                  <span class="text-sm font-semibold hot-title-name">值得买 <span class="text-xs font-normal hot-title-time">({{ getTimeAgo('smzdm') }})</span></span>
                 </a>
-                <svg class="w-4 h-4 cursor-pointer" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button @click="refreshPlatformData('smzdm')" :disabled="refreshingPlatforms.smzdm" class="p-1.5 rounded-full transition-all hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" :title="refreshingPlatforms.smzdm ? 'Refreshing...' : 'Refresh SMZDM data'">
+                  <svg class="w-4 h-4" :class="{ 'animate-spin text-blue-400': refreshingPlatforms.smzdm }" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
@@ -100,7 +118,7 @@
               <li v-for="(item, index) in techItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
-                  <span class="flex-shrink-0 ml-2 hotness">{{ item.hot_value }}</span>
+                  <span v-if="formatHotValue(item.hot_value)" class="flex-shrink-0 ml-2 hotness">{{ formatHotValue(item.hot_value) }}</span>
                 </a>
               </li>
             </ul>
@@ -114,9 +132,13 @@
               <div class="flex justify-between items-center hot-title-inner">
                 <a class="flex gap-2 items-center hot-logo" href="#">
                   <svg class="w-5 h-5" style="color: #e6162d;" fill="currentColor" viewBox="0 0 24 24"><path d="M9.31 8.17c-.36.36-.58.85-.58 1.4 0 1.09.89 1.98 1.98 1.98.55 0 1.04-.22 1.4-.58l2.49-2.49c.36-.36.58-.85.58-1.4 0-1.09-.89-1.98-1.98-1.98-.55 0-1.04.22-1.4.58L9.31 8.17z"></path></svg>
-                  <span class="text-sm font-semibold hot-title-name">微博热搜 <span class="text-xs font-normal hot-title-time">(12分钟前)</span></span>
+                  <span class="text-sm font-semibold hot-title-name">微博热搜 <span class="text-xs font-normal hot-title-time">({{ getTimeAgo('weibo') }})</span></span>
                 </a>
-                <svg class="w-4 h-4 cursor-pointer" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button @click="refreshPlatformData('weibo')" :disabled="refreshingPlatforms.weibo" class="p-1.5 rounded-full transition-all hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" :title="refreshingPlatforms.weibo ? 'Refreshing...' : 'Refresh Weibo data'">
+                  <svg class="w-4 h-4" :class="{ 'animate-spin text-blue-400': refreshingPlatforms.weibo }" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
@@ -126,7 +148,7 @@
               <li v-for="(item, index) in weiboItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
-                  <span class="flex-shrink-0 ml-2 hotness">{{ item.hot_value }}</span>
+                  <span v-if="formatHotValue(item.hot_value)" class="flex-shrink-0 ml-2 hotness">{{ formatHotValue(item.hot_value) }}</span>
                 </a>
               </li>
             </ul>
@@ -142,7 +164,11 @@
                   <svg class="w-5 h-5" style="color: #fb7299;" fill="currentColor" viewBox="0 0 24 24"><path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .356-.124.657-.373.906l-1.174 1.12zM6.4 15.558a.928.928 0 0 0 .929.928.928.928 0 0 0 .928-.928V9.721a.928.928 0 0 0-.928-.929.928.928 0 0 0-.929.929v5.837zm4.114 0a.928.928 0 0 0 .929.928.928.928 0 0 0 .928-.928V9.721a.928.928 0 0 0-.928-.929.928.928 0 0 0-.929.929v5.837zm4.114 0a.928.928 0 0 0 .929.928.928.928 0 0 0 .929-.928V9.721a.928.928 0 0 0-.929-.929.928.928 0 0 0-.929.929v5.837z"></path></svg>
                   <span class="text-sm font-semibold hot-title-name">B站热榜 <span class="text-xs font-normal hot-title-time">({{ getTimeAgo('bilibili') }})</span></span>
                 </a>
-                <svg class="w-4 h-4 cursor-pointer" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button @click="refreshPlatformData('bilibili')" :disabled="refreshingPlatforms.bilibili" class="p-1.5 rounded-full transition-all hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" :title="refreshingPlatforms.bilibili ? 'Refreshing...' : 'Refresh Bilibili data'">
+                  <svg class="w-4 h-4" :class="{ 'animate-spin text-blue-400': refreshingPlatforms.bilibili }" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
@@ -152,7 +178,7 @@
               <li v-for="(item, index) in bilibiliItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
-                  <span class="flex-shrink-0 ml-2 hotness">{{ item.hot_value }}</span>
+                  <span v-if="formatHotValue(item.hot_value)" class="flex-shrink-0 ml-2 hotness">{{ formatHotValue(item.hot_value) }}</span>
                 </a>
               </li>
             </ul>
@@ -168,7 +194,11 @@
                   <svg class="w-5 h-5" style="color: #ff6600;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>
                   <span class="text-sm font-semibold hot-title-name">今日头条 <span class="text-xs font-normal hot-title-time">({{ getTimeAgo('toutiao') }})</span></span>
                 </a>
-                <svg class="w-4 h-4 cursor-pointer" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button @click="refreshPlatformData('toutiao')" :disabled="refreshingPlatforms.toutiao" class="p-1.5 rounded-full transition-all hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" :title="refreshingPlatforms.toutiao ? 'Refreshing...' : 'Refresh Toutiao data'">
+                  <svg class="w-4 h-4" :class="{ 'animate-spin text-blue-400': refreshingPlatforms.toutiao }" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
@@ -178,7 +208,7 @@
               <li v-for="(item, index) in toutiaoItems" :key="index">
                 <a href="#" @click="openLink(item.url)" class="flex justify-between hover:underline">
                   <span>{{ index + 1 }}. {{ item.title }}</span> 
-                  <span class="flex-shrink-0 ml-2 hotness">{{ item.hot_value }}</span>
+                  <span v-if="formatHotValue(item.hot_value)" class="flex-shrink-0 ml-2 hotness">{{ formatHotValue(item.hot_value) }}</span>
                 </a>
               </li>
             </ul>
@@ -194,7 +224,11 @@
                   <svg class="w-5 h-5" style="color: #fe7c00;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
                   <span class="text-sm font-semibold hot-title-name">虎扑步行街 <span class="text-xs font-normal hot-title-time">({{ getTimeAgo('hupu') }})</span></span>
                 </a>
-                <svg class="w-4 h-4 cursor-pointer" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button @click="refreshPlatformData('hupu')" :disabled="refreshingPlatforms.hupu" class="p-1.5 rounded-full transition-all hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" :title="refreshingPlatforms.hupu ? 'Refreshing...' : 'Refresh Hupu data'">
+                  <svg class="w-4 h-4" :class="{ 'animate-spin text-blue-400': refreshingPlatforms.hupu }" style="color:var(--icon-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             </div>
             <ul class="space-y-2.5 text-sm hot-content">
@@ -254,31 +288,35 @@
       </main>
 
       <!-- Today's Hot Section - Fixed Right -->
-      <aside class="flex flex-col flex-shrink-0 gap-5 w-full lg:w-72 2xl:w-80">
-        <div class="flex flex-col p-4 rounded-lg side-box hot-top-box">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="flex gap-1.5 items-center text-base font-semibold text"><span class="text-lg">🔥</span> 今日热门</h3>
-            <svg class="w-4 h-4 cursor-pointer text-secondary hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
-          </div>
-          <ul class="space-y-2.5 text-sm hot-content">
-            <li v-for="(item, index) in todayHotItems" :key="index" class="flex justify-between items-center">
-              <a href="#" @click="openLink(item.url)" class="pr-2 truncate hover:underline">{{ index + 1 }}. {{ item.title }}</a>
-              <span class="flex-shrink-0 text-xs hotness">{{ item.source }}</span>
-            </li>
-          </ul>
-        </div>
+      <aside class="flex flex-col flex-shrink-0 gap-5 w-full lg:w-72 2xl:w-80 lg:sticky lg:top-5 lg:self-start lg:max-h-screen lg:overflow-y-auto">
 
         <!-- User Info Section -->
         <div class="flex flex-col gap-5">
         <div class="p-5 rounded-lg side-box">
-          <div class="flex justify-between items-center mb-4">
-            <button class="flex justify-center items-center w-14 h-14 text-lg font-semibold text-white bg-blue-600 rounded-full shadow-lg avatar">读者</button>
+          <div v-if="isAuthenticated" class="flex justify-between items-center mb-4">
+            <button class="flex justify-center items-center w-14 h-14 text-lg font-semibold text-white bg-blue-600 rounded-full shadow-lg avatar">
+              {{ user?.username?.charAt(0).toUpperCase() || 'U' }}
+            </button>
             <div class="text-right">
-              <p class="text-sm text">今天是 你关注世界的第 <span class="text-base font-bold">868</span> 天</p>
-              <p class="mt-1 text-xs text-secondary">实时学习人数：<span class="font-semibold">860</span></p>
+              <p class="text-sm text">Welcome back, <span class="text-base font-bold">{{ user?.username }}</span></p>
+              <p class="mt-1 text-xs text-secondary">Last login: <span class="font-semibold">{{ user?.last_login ? new Date(user.last_login).toLocaleDateString() : 'Today' }}</span></p>
             </div>
           </div>
-          <button class="py-2 w-full font-semibold text-white bg-red-600 rounded-md transition-colors hover:bg-red-700">管理订阅</button>
+          <div v-else class="flex justify-between items-center mb-4">
+            <button class="flex justify-center items-center w-14 h-14 text-lg font-semibold text-white bg-gray-600 rounded-full shadow-lg avatar">Guest</button>
+            <div class="text-right">
+              <p class="text-sm text">Welcome to <span class="text-base font-bold">Hot Topics</span></p>
+              <p class="mt-1 text-xs text-secondary">Please login to save preferences</p>
+            </div>
+          </div>
+          <div v-if="isAuthenticated" class="text-center">
+            <p class="text-sm text-green-400">✓ Account Status: Active</p>
+            <p class="text-xs text-secondary mt-1">Preferences saved automatically</p>
+          </div>
+          <div v-else class="text-center">
+            <p class="text-sm text-yellow-400">⚠ Guest Mode</p>
+            <p class="text-xs text-secondary mt-1">Login to save your preferences</p>
+          </div>
           <div class="flex justify-around items-center mt-4 text-secondary">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cursor-pointer hover:text-white"><path d="M12.22 2h-4.44a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.38"/><path d="M18 14v-4h-4v4h4zM18 10V4.5L14.5 8H18z"/></svg>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cursor-pointer hover:text-white"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -311,25 +349,31 @@
     <!-- 登录模态框 -->
     <div v-if="showLoginModal" class="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-50" @click.self="showLoginModal = false">
       <div class="p-6 mx-4 w-96 max-w-md rounded-lg bg-card">
-        <h2 class="mb-4 text-xl font-semibold text-primary">登录</h2>
+        <h2 class="mb-4 text-xl font-semibold text-primary">Login</h2>
+        
+        <!-- 错误信息显示 -->
+        <div v-if="loginError" class="mb-4 p-3 text-sm text-red-400 bg-red-900/20 border border-red-500/30 rounded-md">
+          {{ loginError }}
+        </div>
+        
         <form @submit.prevent="handleLogin">
           <div class="mb-4">
-            <label class="block mb-2 text-sm font-medium text-secondary">用户名</label>
+            <label class="block mb-2 text-sm font-medium text-secondary">Username</label>
             <input 
               v-model="loginForm.username" 
               type="text" 
               class="px-3 py-2 w-full rounded-md input" 
-              placeholder="请输入用户名"
+              placeholder="Enter your username"
               required
             >
           </div>
           <div class="mb-6">
-            <label class="block mb-2 text-sm font-medium text-secondary">密码</label>
+            <label class="block mb-2 text-sm font-medium text-secondary">Password</label>
             <input 
               v-model="loginForm.password" 
               type="password" 
               class="px-3 py-2 w-full rounded-md input" 
-              placeholder="请输入密码"
+              placeholder="Enter your password"
               required
             >
           </div>
@@ -339,14 +383,14 @@
               :disabled="isLoading"
               class="flex-1 px-4 py-2 btn btn-green-full"
             >
-              {{ isLoading ? '登录中...' : '登录' }}
+              {{ isLoading ? 'Logging in...' : 'Login' }}
             </button>
             <button 
               type="button" 
-              @click="showLoginModal = false"
+              @click="showLoginModal = false; loginError = ''"
               class="flex-1 px-4 py-2 btn btn-gray"
             >
-              取消
+              Cancel
             </button>
           </div>
         </form>
@@ -356,45 +400,51 @@
     <!-- 注册模态框 -->
     <div v-if="showRegisterModal" class="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-50" @click.self="showRegisterModal = false">
       <div class="p-6 mx-4 w-96 max-w-md rounded-lg bg-card">
-        <h2 class="mb-4 text-xl font-semibold text-primary">注册</h2>
+        <h2 class="mb-4 text-xl font-semibold text-primary">Register</h2>
+        
+        <!-- 错误信息显示 -->
+        <div v-if="registerError" class="mb-4 p-3 text-sm text-red-400 bg-red-900/20 border border-red-500/30 rounded-md">
+          {{ registerError }}
+        </div>
+        
         <form @submit.prevent="handleRegister">
           <div class="mb-4">
-            <label class="block mb-2 text-sm font-medium text-secondary">用户名</label>
+            <label class="block mb-2 text-sm font-medium text-secondary">Username</label>
             <input 
               v-model="registerForm.username" 
               type="text" 
               class="px-3 py-2 w-full rounded-md input" 
-              placeholder="请输入用户名"
+              placeholder="Enter your username"
               required
             >
           </div>
           <div class="mb-4">
-            <label class="block mb-2 text-sm font-medium text-secondary">邮箱</label>
+            <label class="block mb-2 text-sm font-medium text-secondary">Email</label>
             <input 
               v-model="registerForm.email" 
               type="email" 
               class="px-3 py-2 w-full rounded-md input" 
-              placeholder="请输入邮箱"
+              placeholder="Enter your email"
               required
             >
           </div>
           <div class="mb-4">
-            <label class="block mb-2 text-sm font-medium text-secondary">密码</label>
+            <label class="block mb-2 text-sm font-medium text-secondary">Password</label>
             <input 
               v-model="registerForm.password" 
               type="password" 
               class="px-3 py-2 w-full rounded-md input" 
-              placeholder="请输入密码"
+              placeholder="Enter your password"
               required
             >
           </div>
           <div class="mb-6">
-            <label class="block mb-2 text-sm font-medium text-secondary">确认密码</label>
+            <label class="block mb-2 text-sm font-medium text-secondary">Confirm Password</label>
             <input 
               v-model="registerForm.confirmPassword" 
               type="password" 
               class="px-3 py-2 w-full rounded-md input" 
-              placeholder="请再次输入密码"
+              placeholder="Confirm your password"
               required
             >
           </div>
@@ -404,14 +454,14 @@
               :disabled="isLoading"
               class="flex-1 px-4 py-2 btn btn-blue-full"
             >
-              {{ isLoading ? '注册中...' : '注册' }}
+              {{ isLoading ? 'Registering...' : 'Register' }}
             </button>
             <button 
               type="button" 
-              @click="showRegisterModal = false"
+              @click="showRegisterModal = false; registerError = ''"
               class="flex-1 px-4 py-2 btn btn-gray"
             >
-              取消
+              Cancel
             </button>
           </div>
         </form>
@@ -425,15 +475,53 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 // 认证相关
-const { isAuthenticated, user, login, register, logout } = useAuth()
+const { isAuthenticated, user, login, register, logout, initAuth } = useAuth()
 const { addNotification } = useNotification()
+
+// 用户配置状态
+const userConfig = ref({
+  theme: 'dark',
+  language: 'zh-CN',
+  autoRefresh: true,
+  refreshInterval: 5,
+  showHotValues: true,
+  compactMode: false
+})
+
+// 保存用户配置到localStorage
+const saveUserConfig = () => {
+  if (process.client) {
+    localStorage.setItem('userConfig', JSON.stringify(userConfig.value))
+  }
+}
+
+// 加载用户配置
+const loadUserConfig = () => {
+  if (process.client) {
+    const saved = localStorage.getItem('userConfig')
+    if (saved) {
+      try {
+        userConfig.value = { ...userConfig.value, ...JSON.parse(saved) }
+      } catch (error) {
+        console.error('Failed to load user config:', error)
+      }
+    }
+  }
+}
+
+// 监听配置变化并自动保存
+watch(userConfig, saveUserConfig, { deep: true })
 
 // 模态框状态
 const showLoginModal = ref(false)
 const showRegisterModal = ref(false)
+
+// 错误状态
+const loginError = ref('')
+const registerError = ref('')
 
 // 登录表单
 const loginForm = ref({
@@ -453,18 +541,71 @@ const registerForm = ref({
 const isLoading = ref(false)
 
 // 主题状态
-const isStealthMode = ref(false)
-const currentTheme = computed(() => isStealthMode.value ? 'theme-stealth' : 'theme-1')
+const isDarkMode = ref(true)
+const currentTheme = computed(() => isDarkMode.value ? 'theme-1' : 'theme-light')
 
-// 主题切换函数
-const toggleTheme = () => {
-  isStealthMode.value = !isStealthMode.value
+// 暗黑模式切换函数
+const toggleDarkMode = () => {
+  isDarkMode.value = !isDarkMode.value
+}
+
+// 搜索相关状态
+const searchQuery = ref('')
+const searchResults = ref<HotItem[]>([])
+
+// 搜索功能
+const handleSearch = () => {
+  if (!searchQuery.value.trim()) {
+    searchResults.value = []
+    return
+  }
+  
+  const query = searchQuery.value.toLowerCase()
+  const allItems: HotItem[] = []
+  
+  // 收集所有平台的数据
+  const platforms = [
+    { items: ngaItems.value, source: 'NGA' },
+    { items: zhihuItems.value, source: '知乎' },
+    { items: techItems.value, source: '值得买' },
+    { items: weiboItems.value, source: '微博' },
+    { items: bilibiliItems.value, source: 'B站' },
+    { items: toutiaoItems.value, source: '今日头条' },
+    { items: hupuItems.value, source: '虎扑' }
+  ]
+  
+  platforms.forEach(platform => {
+    platform.items.forEach(item => {
+      if (item.title.toLowerCase().includes(query)) {
+        allItems.push({
+          ...item,
+          source: platform.source
+        })
+      }
+    })
+  })
+  
+  searchResults.value = allItems.slice(0, 10) // 限制显示10个结果
+}
+
+// 清空搜索结果
+const clearSearch = () => {
+  searchResults.value = []
+}
+
+// 点击搜索结果项
+const selectSearchResult = (url: string) => {
+  openLink(url)
+  clearSearch()
+  searchQuery.value = ''
 }
 
 // 处理登录
 const handleLogin = async () => {
+  loginError.value = ''
+  
   if (!loginForm.value.username || !loginForm.value.password) {
-    addNotification('error', '请填写用户名和密码')
+    loginError.value = 'Please fill in username and password'
     return
   }
 
@@ -472,12 +613,15 @@ const handleLogin = async () => {
   try {
     const result = await login(loginForm.value.username, loginForm.value.password)
     if (result.success) {
-      addNotification('success', '登录成功')
+      addNotification('success', 'Login successful')
       showLoginModal.value = false
       loginForm.value = { username: '', password: '' }
+      loginError.value = ''
     } else {
-      addNotification('error', result.error || '登录失败')
+      loginError.value = result.error || 'Login failed'
     }
+  } catch (error) {
+    loginError.value = 'Login failed. Please try again.'
   } finally {
     isLoading.value = false
   }
@@ -485,13 +629,15 @@ const handleLogin = async () => {
 
 // 处理注册
 const handleRegister = async () => {
+  registerError.value = ''
+  
   if (!registerForm.value.username || !registerForm.value.email || !registerForm.value.password) {
-    addNotification('error', '请填写所有必填字段')
+    registerError.value = 'Please fill in all required fields'
     return
   }
 
   if (registerForm.value.password !== registerForm.value.confirmPassword) {
-    addNotification('error', '密码确认不匹配')
+    registerError.value = 'Password confirmation does not match'
     return
   }
 
@@ -499,12 +645,15 @@ const handleRegister = async () => {
   try {
     const result = await register(registerForm.value)
     if (result.success) {
-      addNotification('success', '注册成功，请登录')
+      addNotification('success', 'Registration successful, please login')
       showRegisterModal.value = false
       registerForm.value = { username: '', email: '', password: '', confirmPassword: '' }
+      registerError.value = ''
     } else {
-      addNotification('error', result.error || '注册失败')
+      registerError.value = result.error || 'Registration failed'
     }
+  } catch (error) {
+    registerError.value = 'Registration failed. Please try again.'
   } finally {
     isLoading.value = false
   }
@@ -543,6 +692,9 @@ const todayHotItems = ref<HotItem[]>([])
 
 // 数据更新时间
 const lastUpdateTimes = ref<Record<string, Date>>({})
+
+// 刷新状态管理
+const refreshingPlatforms = ref<Record<string, boolean>>({})
 
 // 定义API响应类型
 interface ApiResponse {
@@ -588,13 +740,18 @@ const fetchHotItems = async () => {
         if (!groupedData[platform]) {
           groupedData[platform] = []
         }
+        // 去重处理，避免重复标题
+        const seenTitles = new Set<string>()
         hotList.items.forEach((item: any) => {
-          groupedData[platform].push({
-            title: item.title,
-            url: item.url,
-            hot_value: item.score || item.hot_value || item.comment_count || 0,
-            rank: item.rank_position
-          })
+          if (!seenTitles.has(item.title)) {
+            seenTitles.add(item.title)
+            groupedData[platform].push({
+              title: item.title,
+              url: item.url,
+              hot_value: item.score || item.hot_value || item.comment_count || 0,
+              rank: item.rank_position
+            })
+          }
         })
       })
       
@@ -609,10 +766,21 @@ const fetchHotItems = async () => {
       ithomeItems.value = groupedData['IT之家'] || []
       zolItems.value = groupedData['中关村在线'] || []
       
-      // 更新时间戳
+      // 更新时间戳 - 使用正确的平台名称映射
       const now = new Date()
+      const platformMapping: Record<string, string> = {
+        'NGA玩家社区': 'nga',
+        '知乎': 'zhihu',
+        '微博': 'weibo',
+        '什么值得买': 'smzdm',
+        'B站': 'bilibili',
+        '今日头条': 'toutiao',
+        '虎扑': 'hupu',
+        'IT之家': 'ithome'
+      }
       Object.keys(groupedData).forEach(platform => {
-        lastUpdateTimes.value[platform.toLowerCase()] = now
+        const mappedName = platformMapping[platform] || platform.toLowerCase()
+        lastUpdateTimes.value[mappedName] = now
       })
       
       // 生成今日热门（取各平台前几条）
@@ -654,15 +822,33 @@ const loadDefaultData = () => {
 // 获取时间差显示函数
 const getTimeAgo = (platform: string) => {
   const lastUpdate = lastUpdateTimes.value[platform]
-  if (!lastUpdate) return '未知'
+  if (!lastUpdate) return 'unknown'
   
   const now = new Date()
   const diff = Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60))
   
-  if (diff < 1) return '刚刚'
-  if (diff < 60) return `${diff}分钟前`
-  if (diff < 1440) return `${Math.floor(diff / 60)}小时前`
-  return `${Math.floor(diff / 1440)}天前`
+  if (diff < 1) return 'just now'
+  if (diff < 60) return `${diff} min ago`
+  if (diff < 1440) return `${Math.floor(diff / 60)} hr ago`
+  return `${Math.floor(diff / 1440)} day ago`
+}
+
+// 格式化热度值
+const formatHotValue = (value: string | number | undefined) => {
+  if (!value) return ''
+  
+  // 如果是字符串且包含中文，直接返回
+  if (typeof value === 'string' && /[\u4e00-\u9fa5]/.test(value)) {
+    return value
+  }
+  
+  const numValue = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(numValue) || numValue === 0) return ''
+  
+  if (numValue >= 10000) {
+    return `${(numValue / 10000).toFixed(1)}万`
+  }
+  return numValue.toString()
 }
 
 // 打开链接函数
@@ -672,11 +858,97 @@ const openLink = (url: string) => {
   }
 }
 
+// 单个平台数据刷新
+const refreshPlatformData = async (platformName: string) => {
+  refreshingPlatforms.value[platformName] = true
+  
+  try {
+    const config = useRuntimeConfig()
+    const response = await $fetch<ApiResponse>(`/api/v1/hot/${platformName}`, {
+      baseURL: config.public.apiBase,
+      query: {
+        hours: 24,
+        size: 30
+      }
+    })
+    
+    if (response.success && response.data && response.data.hot_lists && response.data.hot_lists.length > 0) {
+       const hotList = response.data.hot_lists[0]
+       // 去重处理，避免重复标题
+       const seenTitles = new Set<string>()
+       const items: HotItem[] = hotList.items
+         .filter((item: any) => {
+           if (seenTitles.has(item.title)) {
+             return false
+           }
+           seenTitles.add(item.title)
+           return true
+         })
+         .map((item: any) => ({
+           title: item.title,
+           url: item.url,
+           hot_value: item.score || item.hot_value || item.comment_count || 0,
+           rank: item.rank_position
+         }))
+      
+      // 根据平台名称更新对应的数据
+      switch (platformName) {
+        case 'nga':
+          ngaItems.value = items
+          break
+        case 'zhihu':
+          zhihuItems.value = items
+          break
+        case 'weibo':
+          weiboItems.value = items
+          break
+        case 'smzdm':
+          techItems.value = items
+          break
+        case 'bilibili':
+          bilibiliItems.value = items
+          break
+        case 'toutiao':
+          toutiaoItems.value = items
+          break
+        case 'hupu':
+          hupuItems.value = items
+          break
+      }
+      
+      // 更新时间戳
+      lastUpdateTimes.value[platformName] = new Date()
+    }
+  } catch (error) {
+    console.error(`刷新${platformName}数据失败:`, error)
+  } finally {
+    refreshingPlatforms.value[platformName] = false
+  }
+}
+
 // 页面加载时获取数据
-onMounted(() => {
+onMounted(async () => {
+  // 初始化认证状态
+  await initAuth()
+  
+  // 加载用户配置
+  loadUserConfig()
+  
+  // 获取热榜数据
   fetchHotItems()
-  // 每5分钟刷新一次数据
-  setInterval(fetchHotItems, 5 * 60 * 1000)
+  
+  // 根据用户配置设置自动刷新
+  if (userConfig.value.autoRefresh) {
+    setInterval(fetchHotItems, userConfig.value.refreshInterval * 60 * 1000)
+  }
+  
+  // 添加全局点击事件监听，点击外部时关闭搜索结果
+  document.addEventListener('click', (event) => {
+    const searchContainer = document.querySelector('.search-container')
+    if (searchContainer && !searchContainer.contains(event.target as Node)) {
+      clearSearch()
+    }
+  })
 })
 
 // 页面元数据
@@ -721,15 +993,15 @@ useHead({
   --icon-color: #888;
 }
 
-.theme-stealth {
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-card: #1f1f1f;
-  --text-primary: #d0d0d0;
-  --text-secondary: #888;
-  --text-muted: #555;
-  --border-color: #333;
-  --icon-color: #666;
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-card: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --border-color: #e5e7eb;
+  --icon-color: #6b7280;
 }
 
 /* 头部样式 */
@@ -852,6 +1124,30 @@ useHead({
 .hot-title-time {
   color: var(--text-secondary, #a0a0a0);
   font-size: 12px;
+}
+
+.hot-content {
+  height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #666 transparent;
+}
+
+.hot-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.hot-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hot-content::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 2px;
+}
+
+.hot-content::-webkit-scrollbar-thumb:hover {
+  background: #888;
 }
 
 .hot-content li {

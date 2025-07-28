@@ -49,12 +49,29 @@
           <h3 class="text-xl font-bold text-gray-800">
             {{ platform }}
           </h3>
-          <span class="text-sm text-gray-500">
-            {{ list.length }} 条
-          </span>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-500">
+              {{ list.length }} 条
+            </span>
+            <button 
+               @click="refreshPlatformData(platform)" 
+               :disabled="refreshingPlatforms[platform]"
+               class="p-2 rounded-full text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+               :title="refreshingPlatforms[platform] ? '刷新中...' : `刷新${platform}数据`"
+             >
+               <Icon 
+                 name="mdi:refresh" 
+                 :class="{ 
+                   'animate-spin text-blue-500': refreshingPlatforms[platform],
+                   'hover:scale-110': !refreshingPlatforms[platform]
+                 }" 
+                 class="transition-transform duration-200"
+               />
+             </button>
+          </div>
         </div>
         
-        <div class="hot-items-container">
+        <div class="hot-items-container h-96 overflow-y-auto border border-gray-200 rounded-lg bg-gray-50">
           <div 
             v-for="(item, index) in list.slice(0, 30)" 
             :key="item.id || index"
@@ -146,6 +163,7 @@ const loading = ref(false)
 const crawling = ref(false)
 const lastUpdateTime = ref('')
 const refreshInterval = ref(null)
+const refreshingPlatforms = ref({})
 
 // 计算属性
 const filteredHotLists = computed(() => {
@@ -217,6 +235,55 @@ const refreshAllData = () => {
 
 const filterByPlatform = () => {
   // 过滤逻辑已在计算属性中处理
+}
+
+// 刷新单个平台数据
+const refreshPlatformData = async (platformDisplayName) => {
+  try {
+    // 设置刷新状态
+    refreshingPlatforms.value[platformDisplayName] = true
+    
+    // 将显示名称转换为API名称（小写，去除特殊字符）
+    const platformApiName = platformDisplayName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    
+    // 根据平台名称映射到正确的API端点
+    const platformNameMap = {
+      '知乎': 'zhihu',
+      '虎扑': 'hupu',
+      'IT之家': 'ithome',
+      '微博': 'weibo',
+      '今日头条': 'toutiao',
+      'B站': 'bilibili',
+      'NGA': 'nga',
+      '什么值得买': 'smzdm',
+      '36氪': 'kr36',
+      'ZOL': 'zol'
+    }
+    
+    const apiName = platformNameMap[platformDisplayName] || platformApiName
+    
+    const response = await $fetch(`/api/v1/hot/${apiName}`)
+    
+    if (response.success && response.data) {
+      // 提取热榜数据
+      let items = []
+      if (response.data.categories && response.data.categories.length > 0) {
+        items = response.data.categories.flatMap(cat => cat.items || [])
+      }
+      
+      // 更新对应平台的数据
+      hotLists.value[platformDisplayName] = items
+      
+      // 更新最后更新时间
+      lastUpdateTime.value = new Date().toLocaleString()
+    }
+  } catch (error) {
+    console.error(`刷新${platformDisplayName}数据失败:`, error)
+    // 这里可以添加错误提示
+  } finally {
+    // 清除刷新状态
+    refreshingPlatforms.value[platformDisplayName] = false
+  }
 }
 
 const formatTime = (timeString) => {
