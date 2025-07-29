@@ -23,11 +23,11 @@ export namespace AuthApi {
  * 登录
  */
 export async function loginApi(data: AuthApi.LoginParams) {
-  const formData = new FormData();
-  formData.append('username', data.username || '');
-  formData.append('password', data.password || '');
+  const params = new URLSearchParams();
+  params.append('username', data.username || '');
+  params.append('password', data.password || '');
   
-  return requestClient.post<AuthApi.LoginResult>('/v1/auth/login', formData, {
+  return requestClient.post<AuthApi.LoginResult>('/v1/auth/login', params, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },

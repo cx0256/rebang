@@ -39,15 +39,25 @@ export const useAuthStore = defineStore('auth', () => {
         accessStore.setAccessToken(access_token);
 
         // 获取用户信息并存储到 accessStore 中
-        const [fetchUserInfoResult, accessCodes] = await Promise.all([
-          fetchUserInfo(),
-          getAccessCodesApi(),
-        ]);
+        try {
+          const [fetchUserInfoResult, accessCodes] = await Promise.all([
+            fetchUserInfo(),
+            getAccessCodesApi(),
+          ]);
 
-        userInfo = fetchUserInfoResult;
+          userInfo = fetchUserInfoResult;
 
-        userStore.setUserInfo(userInfo);
-        accessStore.setAccessCodes(accessCodes);
+          userStore.setUserInfo(userInfo);
+          accessStore.setAccessCodes(accessCodes);
+        } catch (error) {
+          console.error('Failed to fetch user info or access codes:', error);
+          notification.error({
+            message: 'Login Error',
+            description: 'Failed to fetch user information. Please try again.',
+            duration: 5,
+          });
+          throw error;
+        }
 
         if (accessStore.loginExpired) {
           accessStore.setLoginExpired(false);
