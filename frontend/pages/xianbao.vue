@@ -1,174 +1,135 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+  <div class="min-h-screen bg-white dark:bg-gray-900">
     <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center space-x-4">
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div class="max-w-6xl mx-auto px-4">
+        <div class="flex justify-between items-center h-14">
+          <div class="flex items-center space-x-3">
             <button 
               @click="goBack"
-              class="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+              class="flex items-center space-x-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 text-sm"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
-              <span>Back to Hot List</span>
+              <span>返回热榜</span>
             </button>
-            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-            <h1 class="text-xl font-bold text-purple-600 dark:text-purple-400">线报酷</h1>
+            <div class="h-4 w-px bg-gray-300 dark:bg-gray-600"></div>
+            <h1 class="text-lg font-bold text-blue-600 dark:text-blue-400">线报酷</h1>
           </div>
-          <ThemeToggle />
+          <div class="flex items-center space-x-4">
+            <span class="text-xs text-gray-500 dark:text-gray-400">实时更新优惠信息</span>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Search and Filters -->
-      <div class="mb-8">
-        <div class="flex flex-col lg:flex-row gap-4 mb-6">
-          <!-- Search -->
-          <div class="flex-1">
-            <div class="relative">
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Search deals and promotions..."
-                class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-              <svg class="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    <div class="max-w-6xl mx-auto">
+      <!-- Stats Bar -->
+      <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex justify-between items-center text-sm">
+          <div class="flex items-center space-x-6">
+            <span class="text-gray-600 dark:text-gray-400">今日更新: <span class="font-semibold text-blue-600 dark:text-blue-400">{{ todayCount }}</span> 条</span>
+            <span class="text-gray-600 dark:text-gray-400">总计: <span class="font-semibold">{{ totalCount }}</span> 条线报</span>
+          </div>
+          <div class="flex items-center space-x-4">
+            <button 
+              @click="refreshItems"
+              class="flex items-center space-x-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
               </svg>
-            </div>
+              <span>刷新</span>
+            </button>
+            <span class="text-xs text-gray-500 dark:text-gray-400">最后更新: {{ lastUpdateTime }}</span>
           </div>
-          
-          <!-- Category Filter -->
-          <div class="lg:w-48">
-            <select 
-              v-model="selectedCategory"
-              class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="">All Categories</option>
-              <option value="shopping">Shopping</option>
-              <option value="food">Food & Dining</option>
-              <option value="digital">Digital Products</option>
-              <option value="travel">Travel</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="finance">Finance</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          
-          <!-- Sort -->
-          <div class="lg:w-48">
-            <select 
-              v-model="sortBy"
-              class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="latest">Latest</option>
-              <option value="popular">Most Popular</option>
-              <option value="expiring">Expiring Soon</option>
-            </select>
-          </div>
-        </div>
-        
-        <!-- Hot Tags -->
-        <div class="flex flex-wrap gap-2">
-          <span class="text-sm text-gray-600 dark:text-gray-400 mr-2">Hot Tags:</span>
-          <button 
-            v-for="tag in hotTags" 
-            :key="tag"
-            @click="searchQuery = tag"
-            class="px-3 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
-          >
-            {{ tag }}
-          </button>
         </div>
       </div>
 
       <!-- Loading Skeleton -->
-      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="i in 6" :key="i" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-pulse">
-          <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded mb-4"></div>
-          <div class="h-3 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
-          <div class="h-3 bg-gray-300 dark:bg-gray-600 rounded mb-4 w-3/4"></div>
+      <div v-if="loading" class="px-4">
+        <div v-for="i in 8" :key="i" class="border-b border-gray-200 dark:border-gray-700 py-4 animate-pulse">
+          <div class="flex justify-between items-start mb-2">
+            <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
+            <div class="h-3 bg-gray-300 dark:bg-gray-600 rounded w-16"></div>
+          </div>
+          <div class="h-3 bg-gray-300 dark:bg-gray-600 rounded w-1/2 mb-2"></div>
           <div class="flex justify-between items-center">
-            <div class="h-3 bg-gray-300 dark:bg-gray-600 rounded w-1/4"></div>
-            <div class="h-8 bg-gray-300 dark:bg-gray-600 rounded w-20"></div>
+            <div class="h-3 bg-gray-300 dark:bg-gray-600 rounded w-20"></div>
+            <div class="h-6 bg-gray-300 dark:bg-gray-600 rounded w-16"></div>
           </div>
         </div>
       </div>
 
-      <!-- Deal Cards -->
-      <div v-else-if="filteredItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Deal List -->
+      <div v-else-if="items.length > 0" class="divide-y divide-gray-200 dark:divide-gray-700">
         <div 
-          v-for="item in filteredItems" 
+          v-for="item in items" 
           :key="item.id"
-          class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200"
+          class="px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+          @click="openDeal(item)"
         >
-          <div class="p-6">
-            <!-- Header -->
-            <div class="flex justify-between items-start mb-3">
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :class="getCategoryClass(item.category)">
-                {{ getCategoryName(item.category) }}
-              </span>
-              <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(item.publishTime) }}</span>
-            </div>
-            
-            <!-- Title -->
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2 flex-1 mr-4">
               {{ item.title }}
             </h3>
-            
-            <!-- Description -->
-            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-              {{ item.description }}
-            </p>
-            
-            <!-- Meta Info -->
-            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4">
-              <div class="flex items-center space-x-4">
-                <span>👀 {{ item.views }}</span>
-                <span>👍 {{ item.likes }}</span>
-                <span>💬 {{ item.comments }}</span>
-              </div>
+            <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+              <span>{{ formatTime(item.publishTime) }}</span>
+              <span v-if="item.isHot" class="bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400 px-1.5 py-0.5 rounded">热门</span>
+              <span v-if="item.isNew" class="bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400 px-1.5 py-0.5 rounded">新</span>
+            </div>
+          </div>
+          
+          <p v-if="item.description" class="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
+            {{ item.description }}
+          </p>
+          
+          <div class="flex justify-between items-center text-xs">
+            <div class="flex items-center space-x-4 text-gray-500 dark:text-gray-400">
+              <span class="flex items-center space-x-1">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                </svg>
+                <span>{{ item.views || 0 }}</span>
+              </span>
+              <span class="flex items-center space-x-1">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+                </svg>
+                <span>{{ item.likes || 0 }}</span>
+              </span>
+              <span>来源: {{ item.source }}</span>
               <span v-if="item.expiryDate" class="text-red-500 dark:text-red-400">
                 {{ formatExpiryDate(item.expiryDate) }}
               </span>
             </div>
-            
-            <!-- Footer -->
-            <div class="flex justify-between items-center">
-              <span class="text-xs text-gray-500 dark:text-gray-400">
-                来源: {{ item.source }}
-              </span>
-              <button 
-                @click="openDeal(item)"
-                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                立即查看
-              </button>
-            </div>
+            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium" :class="getCategoryClass(item.category)">
+              {{ getCategoryName(item.category) }}
+            </span>
           </div>
         </div>
       </div>
 
       <!-- Empty State -->
-      <div v-else class="text-center py-12">
-        <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div v-else class="text-center py-16 px-4">
+        <svg class="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
         </svg>
-        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No deals found</h3>
-        <p class="text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria</p>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">暂无线报信息</h3>
+        <p class="text-gray-500 dark:text-gray-400">请稍后再试或刷新页面</p>
       </div>
 
       <!-- Load More -->
-      <div v-if="hasMore && !loading" class="text-center mt-8">
+      <div v-if="hasMore && !loading" class="text-center py-6 border-t border-gray-200 dark:border-gray-700">
         <button 
           @click="loadMore"
-          class="px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
         >
-          Load More
+          加载更多
         </button>
       </div>
     </div>
@@ -176,7 +137,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 // SEO
@@ -195,45 +156,21 @@ const loading = ref(false)
 const error = ref(null)
 const currentPage = ref(1)
 const hasMore = ref(true)
-const searchQuery = ref('')
-const selectedCategory = ref('')
-const sortBy = ref('latest')
 
-// Hot tags
-const hotTags = ref(['免费领取', '限时优惠', '满减活动', '新用户福利', '积分兑换'])
+// Stats
+const todayCount = ref(0)
+const totalCount = ref(0)
+const lastUpdateTime = ref('')
 
 // Computed
-const filteredItems = computed(() => {
-  let filtered = [...items.value]
-  
-  // Filter by search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(item => 
-      item.title.toLowerCase().includes(query) ||
-      item.description.toLowerCase().includes(query)
-    )
-  }
-  
-  // Filter by category
-  if (selectedCategory.value) {
-    filtered = filtered.filter(item => item.category === selectedCategory.value)
-  }
-  
-  // Sort
-  if (sortBy.value === 'popular') {
-    filtered.sort((a, b) => b.views - a.views)
-  } else if (sortBy.value === 'expiring') {
-    filtered.sort((a, b) => {
-      if (!a.expiryDate) return 1
-      if (!b.expiryDate) return -1
-      return new Date(a.expiryDate) - new Date(b.expiryDate)
-    })
-  } else {
-    filtered.sort((a, b) => new Date(b.publishTime) - new Date(a.publishTime))
-  }
-  
-  return filtered
+const currentTime = computed(() => {
+  const now = new Date()
+  return now.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 })
 
 // Methods
@@ -241,14 +178,19 @@ const goBack = () => {
   router.push('/')
 }
 
+const refreshItems = () => {
+  fetchItems(1)
+}
+
 const getCategoryName = (category) => {
   const categoryMap = {
-    shopping: '购物优惠',
-    food: '美食餐饮',
-    digital: '数码产品',
-    travel: '旅游出行',
-    entertainment: '娱乐休闲',
-    finance: '金融理财',
+    shopping: '购物',
+    food: '美食',
+    digital: '数码',
+    travel: '旅游',
+    entertainment: '娱乐',
+    finance: '金融',
+    game: '游戏',
     other: '其他'
   }
   return categoryMap[category] || '其他'
@@ -256,13 +198,14 @@ const getCategoryName = (category) => {
 
 const getCategoryClass = (category) => {
   const classMap = {
-    shopping: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-    food: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    digital: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-    travel: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    entertainment: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300',
-    finance: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
-    other: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+    shopping: 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-300',
+    food: 'bg-green-50 text-green-600 dark:bg-green-900 dark:text-green-300',
+    digital: 'bg-purple-50 text-purple-600 dark:bg-purple-900 dark:text-purple-300',
+    travel: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300',
+    entertainment: 'bg-pink-50 text-pink-600 dark:bg-pink-900 dark:text-pink-300',
+    finance: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300',
+    game: 'bg-red-50 text-red-600 dark:bg-red-900 dark:text-red-300',
+    other: 'bg-gray-50 text-gray-600 dark:bg-gray-900 dark:text-gray-300'
   }
   return classMap[category] || classMap.other
 }
@@ -311,94 +254,137 @@ const fetchItems = async (page = 1) => {
   
   try {
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise(resolve => setTimeout(resolve, 800))
     
-    // Mock data
+    // Mock data - more realistic deal titles
     const mockItems = [
       {
         id: 1,
-        title: '京东PLUS会员年卡限时5折优惠',
-        description: '原价198元的京东PLUS会员年卡现在只需99元，享受全年免费配送、专属优惠券等特权。',
-        category: 'shopping',
-        publishTime: new Date(Date.now() - 30 * 60000),
-        expiryDate: new Date(Date.now() + 2 * 24 * 60 * 60000),
-        source: '京东',
-        views: 1234,
-        likes: 89,
-        comments: 23,
+        title: '【免费领取】支付宝扫码领红包 每天可领1-99元',
+        description: '支付宝官方活动，每天扫码可领随机红包，线下支付自动抵扣',
+        category: 'finance',
+        publishTime: new Date(Date.now() - 15 * 60000),
+        expiryDate: null,
+        source: '支付宝官方',
+        views: 2341,
+        likes: 156,
+        isHot: true,
+        isNew: false,
         link: 'https://example.com'
       },
       {
         id: 2,
-        title: '美团外卖新用户专享20元无门槛券',
-        description: '新用户注册美团外卖即可获得20元无门槛优惠券，全场通用，有效期7天。',
-        category: 'food',
-        publishTime: new Date(Date.now() - 2 * 60 * 60000),
-        expiryDate: new Date(Date.now() + 5 * 24 * 60 * 60000),
-        source: '美团',
-        views: 2156,
-        likes: 156,
-        comments: 45,
+        title: '京东PLUS会员年卡5折 原价198现价99元',
+        description: '京东PLUS会员年卡限时5折，享全年免邮、专属优惠等特权',
+        category: 'shopping',
+        publishTime: new Date(Date.now() - 45 * 60000),
+        expiryDate: new Date(Date.now() + 2 * 24 * 60 * 60000),
+        source: '京东',
+        views: 1876,
+        likes: 89,
+        isHot: false,
+        isNew: true,
         link: 'https://example.com'
       },
       {
         id: 3,
-        title: 'iPhone 15 Pro Max 官方降价1000元',
-        description: 'Apple官方商店iPhone 15 Pro Max全系列降价1000元，支持24期免息分期。',
-        category: 'digital',
-        publishTime: new Date(Date.now() - 4 * 60 * 60000),
-        expiryDate: new Date(Date.now() + 10 * 24 * 60 * 60000),
-        source: 'Apple',
-        views: 5678,
-        likes: 234,
-        comments: 67,
+        title: '美团外卖新用户20元无门槛券 限时领取',
+        description: '美团外卖新用户专享，注册即送20元无门槛优惠券',
+        category: 'food',
+        publishTime: new Date(Date.now() - 1.5 * 60 * 60000),
+        expiryDate: new Date(Date.now() + 5 * 24 * 60 * 60000),
+        source: '美团',
+        views: 1234,
+        likes: 67,
+        isHot: false,
+        isNew: false,
         link: 'https://example.com'
       },
       {
         id: 4,
-        title: '支付宝扫码领取随机红包',
-        description: '每天可扫码领取1-99元随机红包，线下支付时自动抵扣。',
-        category: 'finance',
-        publishTime: new Date(Date.now() - 6 * 60 * 60000),
-        expiryDate: null,
-        source: '支付宝',
-        views: 3421,
-        likes: 178,
-        comments: 34,
+        title: '腾讯视频VIP 3个月19.9元 限时特惠',
+        description: '腾讯视频VIP会员3个月套餐特价，海量高清影视随意看',
+        category: 'entertainment',
+        publishTime: new Date(Date.now() - 3 * 60 * 60000),
+        expiryDate: new Date(Date.now() + 3 * 24 * 60 * 60000),
+        source: '腾讯视频',
+        views: 987,
+        likes: 45,
+        isHot: false,
+        isNew: false,
         link: 'https://example.com'
       },
       {
         id: 5,
-        title: '腾讯视频VIP会员3个月仅需19.9元',
-        description: '限时特惠，腾讯视频VIP会员3个月套餐仅需19.9元，享受海量高清影视内容。',
-        category: 'entertainment',
-        publishTime: new Date(Date.now() - 8 * 60 * 60000),
-        expiryDate: new Date(Date.now() + 3 * 24 * 60 * 60000),
-        source: '腾讯视频',
-        views: 1876,
-        likes: 92,
-        comments: 18,
+        title: '王者荣耀皮肤免费领 限时活动进行中',
+        description: '王者荣耀官方活动，完成任务即可免费获得限定皮肤',
+        category: 'game',
+        publishTime: new Date(Date.now() - 4 * 60 * 60000),
+        expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60000),
+        source: '王者荣耀',
+        views: 3456,
+        likes: 234,
+        isHot: true,
+        isNew: false,
         link: 'https://example.com'
       },
       {
         id: 6,
-        title: '携程旅行酒店预订满300减100',
-        description: '携程APP预订酒店满300元立减100元，全国酒店通用，周末不加价。',
+        title: '携程酒店满300减100 全国通用不限时间',
+        description: '携程APP预订酒店满300立减100，全国酒店通用',
         category: 'travel',
-        publishTime: new Date(Date.now() - 12 * 60 * 60000),
-        expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60000),
+        publishTime: new Date(Date.now() - 6 * 60 * 60000),
+        expiryDate: new Date(Date.now() + 10 * 24 * 60 * 60000),
         source: '携程',
-        views: 987,
-        likes: 45,
-        comments: 12,
+        views: 654,
+        likes: 32,
+        isHot: false,
+        isNew: false,
+        link: 'https://example.com'
+      },
+      {
+        id: 7,
+        title: '拼多多现金大转盘 每天3次机会最高888元',
+        description: '拼多多现金大转盘活动，每天3次抽奖机会，最高可得888元现金',
+        category: 'shopping',
+        publishTime: new Date(Date.now() - 8 * 60 * 60000),
+        expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60000),
+        source: '拼多多',
+        views: 2109,
+        likes: 123,
+        isHot: false,
+        isNew: true,
+        link: 'https://example.com'
+      },
+      {
+        id: 8,
+        title: '招商银行信用卡新户礼 最高500元京东卡',
+        description: '招商银行信用卡新用户专享，成功申请可获得最高500元京东购物卡',
+        category: 'finance',
+        publishTime: new Date(Date.now() - 10 * 60 * 60000),
+        expiryDate: new Date(Date.now() + 15 * 24 * 60 * 60000),
+        source: '招商银行',
+        views: 876,
+        likes: 54,
+        isHot: false,
+        isNew: false,
         link: 'https://example.com'
       }
     ]
     
     if (page === 1) {
       items.value = mockItems
+      // Update stats
+      todayCount.value = mockItems.filter(item => {
+        const today = new Date()
+        const itemDate = new Date(item.publishTime)
+        return itemDate.toDateString() === today.toDateString()
+      }).length
+      totalCount.value = 1247 // Mock total count
+      lastUpdateTime.value = currentTime.value
     } else {
-      items.value.push(...mockItems.map(item => ({ ...item, id: item.id + (page - 1) * 6 })))
+      const newItems = mockItems.map(item => ({ ...item, id: item.id + (page - 1) * 8 }))
+      items.value.push(...newItems)
     }
     
     hasMore.value = page < 3 // Simulate 3 pages of data
@@ -414,11 +400,6 @@ const fetchItems = async (page = 1) => {
 const loadMore = () => {
   fetchItems(currentPage.value + 1)
 }
-
-// Watch for filter changes
-watch([searchQuery, selectedCategory, sortBy], () => {
-  // In a real app, you might want to refetch data here
-})
 
 // Initialize
 onMounted(() => {
