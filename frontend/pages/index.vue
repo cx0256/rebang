@@ -25,6 +25,9 @@
           <button @click="handleLogout" class="px-4 py-1.5 text-sm font-semibold btn btn-red-full">Logout</button>
         </div>
         
+        <!-- 线报站入口 -->
+        <NuxtLink to="/xianbao" class="px-4 py-1.5 text-sm font-semibold btn btn-purple-full">线报酷</NuxtLink>
+        
         <div class="sidebar-btn">
           <svg @click="toggleDarkMode" xmlns="http://www.w3.org/2000/svg" id="theme-toggle-icon" class="w-6 h-6 transition-transform cursor-pointer hover:scale-110" :class="isDarkMode ? 'text-yellow-400' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path v-if="!isDarkMode" stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
